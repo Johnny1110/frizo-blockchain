@@ -56,3 +56,4 @@ frizo-blockchain/
 ## Logs
 
 * [EP1](https://www.youtube.com/watch?v=oCm46sUILcs&list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&index=1&t=176s&ab_channel=AnthonyGG)
+* [EP2](https://www.youtube.com/watch?v=_f6SNxI2mog&list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&index=2&ab_channel=AnthonyGG)

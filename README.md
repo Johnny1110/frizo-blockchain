@@ -18,7 +18,7 @@ frizo-blockchain/
 │   └── frizo/              # Main application entry point
 │       └── main.go         # Only main package here
 ├── internal/               # Private packages (can't be imported by other projects)
-│   ├── blockchain/         # Core blockchain logic
+│   ├── core/         # Core blockchain logic
 │   │   ├── block.go
 │   │   ├── chain.go
 │   │   └── transaction.go

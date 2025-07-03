@@ -1,9 +1,11 @@
 package core
 
 import (
+	"bytes"
 	"encoding/binary"
 	"frizo-blockchain/internal/types"
 	"io"
+	"log"
 )
 
 type Header struct {
@@ -63,6 +65,20 @@ func (h *Header) DecodeBinary(r io.Reader) error {
 type Block struct {
 	Header       Header
 	Transactions []Transaction
+	// Cached version of header hash
+	hash types.Hash
+}
+
+func (b *Block) Hash() types.Hash {
+	if b.hash.IsZero() {
+		buf := &bytes.Buffer{}
+		err := b.Header.EncodeBinary(buf)
+		if err != nil {
+			log.Fatalf("failed to block header, error :%v", err)
+		}
+		b.hash = types.HashSha256(buf)
+	}
+	return b.hash
 }
 
 func (b *Block) EncodeBinary(w io.Writer) error {

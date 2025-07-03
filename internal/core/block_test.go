@@ -51,3 +51,23 @@ func TestBlock_Encode_Decode(t *testing.T) {
 
 	assert.Equal(t, block, blockDecode)
 }
+
+func TestBlock_Hash(t *testing.T) {
+	block := &Block{
+		Header: Header{
+			Version:   1,
+			PrevBlock: types.RandomHash(),
+			Timestamp: time.Now().UnixNano(),
+			Height:    10,
+			Nonce:     901238,
+		},
+		Transactions: make([]Transaction, 2),
+	}
+
+	block.Transactions[0] = Transaction{}
+	block.Transactions[1] = Transaction{}
+
+	blockHash := block.Hash()
+	fmt.Println(&blockHash)
+	assert.False(t, false, blockHash.IsZero())
+}

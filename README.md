@@ -57,3 +57,4 @@ frizo-blockchain/
 
 * [EP1](https://www.youtube.com/watch?v=oCm46sUILcs&list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&index=1&t=176s&ab_channel=AnthonyGG)
 * [EP2](https://youtu.be/_f6SNxI2mog?list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&t=1924)
+* [EP3](https://www.youtube.com/watch?v=-nmVCl8-Vbs&ab_channel=AnthonyGG)

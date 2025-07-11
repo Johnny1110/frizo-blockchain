@@ -10,6 +10,8 @@ A blockchain implements by golang (academic research purpose)
 
 <br>
 
+[Frizo Blockchain WhitePaper](docs/whitepaper/whitepaper.md)
+
 Project Structure:
 
 ```

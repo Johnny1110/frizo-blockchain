@@ -2,11 +2,9 @@ package crypto
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"encoding/hex"
 	"frizo-blockchain/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
@@ -117,13 +115,4 @@ func Ecrecover(message []byte, signature Signature) (*ecdsa.PublicKey, error) {
 	}
 
 	return publicKey, nil
-}
-
-// FromECDSAPub exports a public key into a binary format.
-func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
-	if pub == nil || pub.X == nil || pub.Y == nil {
-		return nil
-	}
-	// concat public-key x,y
-	return elliptic.Marshal(secp256k1.S256(), pub.X, pub.Y)
 }

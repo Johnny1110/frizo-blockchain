@@ -2,9 +2,11 @@ package crypto
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"encoding/hex"
 	"frizo-blockchain/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 )
 
 // CreateWallet create a new walletAddress and private-key
@@ -38,6 +40,15 @@ func PubkeyToAddress(pubkey *ecdsa.PublicKey) common.Address {
 	hashPubKey := Keccak256(pubBytesWithoutPrefix)
 	// using last 20 bytes as address
 	return common.BytesToAddress(hashPubKey[12:])
+}
+
+// FromECDSAPub exports a public key into a binary format.
+func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
+	if pub == nil || pub.X == nil || pub.Y == nil {
+		return nil
+	}
+	// concat public-key x,y
+	return elliptic.Marshal(secp256k1.S256(), pub.X, pub.Y)
 }
 
 func ImportPrivateKey(hexKey string) (*ecdsa.PrivateKey, error) {

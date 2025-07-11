@@ -305,6 +305,8 @@ Frizo Blockchain 將成為一個功能完整的學術研究型區塊鏈平台。
 
 <br>
 
+## Ethereum 研究筆記: [link](docs/ethereum)
+
 ## 開發者日誌：
 
 ### Phase-1: [link](docs/developer_diary/DEV_Phase_1.md)

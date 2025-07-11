@@ -17,6 +17,17 @@ type Signature struct {
 	V    byte
 }
 
+func NewSignature(s []byte) (Signature, error) {
+	if len(s) < common.SignatureLen {
+		return Signature{}, common.ErrInvalidSignature
+	}
+	return Signature{
+		R: new(big.Int).SetBytes(s[:32]),
+		S: new(big.Int).SetBytes(s[32:64]),
+		V: s[64],
+	}, nil
+}
+
 // Bytes returns the signature in RSV format: R (32 bytes) | S (32 bytes) | V (1 byte)
 func (sign *Signature) HexStr() string {
 	return hex.EncodeToString(sign.Bytes())

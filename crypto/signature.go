@@ -3,14 +3,15 @@ package crypto
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/rand"
-	"errors"
-	"fmt"
+	"encoding/hex"
 	"frizo-blockchain/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
-// TODO: 公私鑰的產生需要補學術知識，然後回來重寫一次
+// document: https://github.com/Johnny1110/frizo-blockchain/blob/develop/docs/basic/wallet.md
 
 // Signature represents a digital signature
 type Signature struct {
@@ -18,104 +19,104 @@ type Signature struct {
 	V    byte
 }
 
-// SignatureLength is the expected length of a signature R(32) + S(32) + V(1)
-const SignatureLength = 65
-
-// RecoveryIDOffset is added to the recovery ID to conform to Ethereum's signature format
-const RecoveryIDOffset = 27 // 以太坊簽章 V 是 27/28
-
-var (
-	// 曲線階 (order)
-	secp256k1N = new(big.Int).SetBytes(hexToBytes("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141"))
-	// N/2，用於 low‑s 檢查
-	secp256k1H = new(big.Int).SetBytes(hexToBytes("7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0"))
-)
-
-// GenerateKey generates a new private key.
-func GenerateKey() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(S256(), rand.Reader)
+// Bytes returns the signature in RSV format: R (32 bytes) | S (32 bytes) | V (1 byte)
+func (sign *Signature) HexStr() string {
+	return hex.EncodeToString(sign.Bytes())
 }
 
-// Sign calculates an ECDSA signature.
-// The produced signature is in the [R || S || V] format where V is 0 or 1.
-func Sign(hash []byte, prv *ecdsa.PrivateKey) ([]byte, error) {
-	if len(hash) != 32 {
-		return nil, fmt.Errorf("hash must be exactly 32 bytes (%d)", len(hash))
+// Bytes returns the signature in RSV format: R (32 bytes) | S (32 bytes) | V (1 byte)
+func (sign *Signature) Bytes() []byte {
+	rBytes := sign.R.Bytes()
+	sBytes := sign.S.Bytes()
+
+	// Pad R and S to 32 bytes
+	rPadded := make([]byte, 32)
+	copy(rPadded[32-len(rBytes):], rBytes)
+
+	sPadded := make([]byte, 32)
+	copy(sPadded[32-len(sBytes):], sBytes)
+
+	// Combine R + S + V
+	result := make([]byte, 65)
+	copy(result[:32], rPadded)
+	copy(result[32:64], sPadded)
+	result[64] = sign.V
+
+	return result
+}
+
+// SignMessage calculates an ECDSA signature.
+// The produced signature is in the [R || S || V] format.
+func SignMessage(privateKey *ecdsa.PrivateKey, message []byte) (Signature, error) {
+	if len(message) != 32 {
+		return Signature{}, common.ErrInvalidMessage
 	}
 
-	r, s, err := ecdsa.Sign(rand.Reader, prv, hash)
+	messageHash := crypto.Keccak256(message)
+	signature, err := crypto.Sign(messageHash, privateKey)
 	if err != nil {
-		return nil, err
+		return Signature{}, common.ErrInvalidPrivateKey
 	}
 
-	// Serialize signature
-	sig := make([]byte, SignatureLength)
-	copy(sig[0:32], r.Bytes())
-	copy(sig[32:64], s.Bytes())
+	return Signature{
+		R: new(big.Int).SetBytes(signature[:32]),
+		S: new(big.Int).SetBytes(signature[32:64]),
+		V: signature[64],
+	}, nil
+}
 
-	// Calculate V (recovery ID)
-	// This is simplified - in production, you'd need to determine the correct recovery ID
-	sig[64] = 0 // or 1, depending on the recovery process
+// VerifyAndReturnAddress return address if verify success, otherwise return error
+func VerifyAndReturnAddress(message []byte, signature Signature) (common.Address, error) {
+	recoveredPubKey, err := Ecrecover(message, signature)
+	if err != nil {
+		return common.Address{}, err
+	}
 
-	return sig, nil
+	ok := VerifySignature(recoveredPubKey, message, signature)
+	if !ok {
+		return common.Address{}, common.ErrInvalidSignature
+	}
+
+	return PubkeyToAddress(recoveredPubKey), nil
 }
 
 // VerifySignature checks that the given public key created the signature over hash.
-func VerifySignature(pubkey, hash, signature []byte) bool {
-	if len(signature) != SignatureLength {
+func VerifySignature(publicKey *ecdsa.PublicKey, message []byte, signature Signature) bool {
+	signBytes := signature.Bytes()
+	if len(signBytes) != common.SignatureLen {
 		return false
 	}
 
-	// Parse public key
-	x, y := elliptic.Unmarshal(S256(), pubkey)
-	if x == nil {
-		return false
-	}
+	messageHash := crypto.Keccak256(message)
+	signatureNoRecoveryID := signBytes[:common.SignatureLen-1]
 
-	// Parse signature
-	r := new(big.Int).SetBytes(signature[0:32])
-	s := new(big.Int).SetBytes(signature[32:64])
-
-	// Verify
-	return ecdsa.Verify(&ecdsa.PublicKey{Curve: S256(), X: x, Y: y}, hash, r, s)
+	return crypto.VerifySignature(
+		FromECDSAPub(publicKey),
+		messageHash,
+		signatureNoRecoveryID,
+	)
 }
 
 // Ecrecover(反推公鑰) returns the uncompressed public key that created the given signature.
-func Ecrecover(hash, sig []byte) ([]byte, error) {
-	if len(sig) != SignatureLength {
-		return nil, errors.New("invalid signature length")
+func Ecrecover(message []byte, signature Signature) (*ecdsa.PublicKey, error) {
+	signBytes := signature.Bytes()
+	if len(signBytes) != common.SignatureLen {
+		return nil, common.ErrInvalidSignature
+	}
+	if len(message) > 32 {
+		return nil, common.ErrInvalidMessage
 	}
 
-	// This is a simplified implementation
-	// In production, you'd implement the full ECDSA recovery algorithm
-	// For now, we'll return an error indicating it's not implemented
-	return nil, errors.New("ecrecover not implemented in this phase")
-}
+	messageHash := crypto.Keccak256(message)
 
-// PubkeyToAddress converts a public key to an Ethereum address.
-func PubkeyToAddress(pubkey ecdsa.PublicKey) common.Address {
-	pubBytes := FromECDSAPub(&pubkey)
-	return common.BytesToAddress(Keccak256(pubBytes[1:])[12:])
-}
-
-// FromECDSA exports a private key into a binary format.
-func FromECDSA(priv *ecdsa.PrivateKey) []byte {
-	if priv == nil {
-		return nil
+	// recover
+	publicKey, err := crypto.SigToPub(messageHash, signBytes)
+	if err != nil {
+		log.Warn("[crypto][Ecrecover] failed", err)
+		return nil, common.ErrInvalidSignature
 	}
-	return priv.D.Bytes()
-}
 
-// ToECDSA creates a private key from a binary representation.
-func ToECDSA(d []byte) (*ecdsa.PrivateKey, error) {
-	priv := new(ecdsa.PrivateKey)
-	priv.PublicKey.Curve = S256()
-	if 8*len(d) != priv.Params().BitSize {
-		return nil, errors.New("invalid private key length")
-	}
-	priv.D = new(big.Int).SetBytes(d)
-	priv.PublicKey.X, priv.PublicKey.Y = priv.PublicKey.Curve.ScalarBaseMult(d)
-	return priv, nil
+	return publicKey, nil
 }
 
 // FromECDSAPub exports a public key into a binary format.
@@ -123,47 +124,6 @@ func FromECDSAPub(pub *ecdsa.PublicKey) []byte {
 	if pub == nil || pub.X == nil || pub.Y == nil {
 		return nil
 	}
-	return elliptic.Marshal(S256(), pub.X, pub.Y)
-}
-
-// ToECDSAPub creates a public key from a binary representation.
-func ToECDSAPub(pub []byte) (*ecdsa.PublicKey, error) {
-	if len(pub) == 0 {
-		return nil, errors.New("invalid public key")
-	}
-	x, y := elliptic.Unmarshal(S256(), pub)
-	if x == nil {
-		return nil, errors.New("invalid public key")
-	}
-	return &ecdsa.PublicKey{Curve: S256(), X: x, Y: y}, nil
-}
-
-// S256 returns an instance of the secp256k1 curve.
-func S256() elliptic.Curve {
-	// In production, you'd use a proper secp256k1 implementation
-	// For now, we'll use P256 as a placeholder
-	return elliptic.P256()
-}
-
-// ValidateSignatureValues verifies whether the signature values are within the allowed range.
-func ValidateSignatureValues(v byte, r, s *big.Int) bool {
-	if r.Cmp(big.NewInt(1)) < 0 || r.Cmp(secp256k1N) >= 0 {
-		return false
-	}
-	if s.Cmp(big.NewInt(1)) < 0 || s.Cmp(secp256k1H) > 0 {
-		return false
-	}
-	if v != 0 && v != 1 {
-		return false
-	}
-	return true
-}
-
-// hexToBytes converts a hex string to bytes
-func hexToBytes(hexStr string) []byte {
-	bytes := make([]byte, len(hexStr)/2)
-	for i := 0; i < len(hexStr); i += 2 {
-		fmt.Sscanf(hexStr[i:i+2], "%x", &bytes[i/2])
-	}
-	return bytes
+	// concat public-key x,y
+	return elliptic.Marshal(secp256k1.S256(), pub.X, pub.Y)
 }

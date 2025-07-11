@@ -4,6 +4,12 @@ import "errors"
 
 // Common errors
 var (
+	ErrFailedCreateWallet = errors.New("failed to create wallet")
+	ErrInvalidMessage     = errors.New("invalid message")
+
+	// ErrInvalidPrivateKey is returned when a private key invalid
+	ErrInvalidPrivateKey = errors.New("invalid private key")
+
 	// ErrInvalidHash is returned when a hash is invalid
 	ErrInvalidHash = errors.New("invalid hash")
 

@@ -12,6 +12,7 @@ const (
 	// TXN
 	MaxTransactionSize = 32768      // Max txn size (32KB)
 	MinGasPrice        = 1000000000 // Min Gas price (1 Gwei)
+	SignatureLen       = 65         // sgin len (RSV)
 
 	// Network
 	DefaultP2PPort = 30303 // Default P2P port

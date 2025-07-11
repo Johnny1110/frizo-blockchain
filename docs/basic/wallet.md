@@ -10,13 +10,16 @@
 
 * 私鑰 → 公鑰：使用橢圓曲線加密算出（secp256k1）
 * 公鑰 → 地址：對公鑰進行 Keccak-256 HASH，取後 20 bytes 當作地址表達
+  * Keccak-256 是甚麼?
+  * Keccak256 is a kind of cryptographic hash function, input any data and output 256 bit (32 bytes).
 * 地址格式：加上"0x"前綴，得到42 bytes ("0x" + "20碼") 的以太坊地址
+  ex: `0xa087BCe13bc6d82A0Da93Af61259e5Eb04b2CdD1`
 
 
 <br>
 
 
-生成私鑰和公鑰
+第一步:生成私鑰和公鑰
 
 ```golang
 func GenerateKeyPair() (*ecdsa.PrivateKey, error) {
@@ -43,37 +46,37 @@ func GenerateKeyPair() (*ecdsa.PrivateKey, error) {
 }
 ```
 
-從公鑰生成以太坊地址
+第二步:從公鑰生成以太坊地址
 
 ```go
 func PublicKeyToAddress(publicKey *ecdsa.PublicKey) common.Address {
-	// 地址生成原理：
-	// 1. 將公鑰的x,y座標串聯（去掉前綴04）
-	// 2. 對串聯結果進行 Keccak-256 哈希 (Keccak-256 是可以將任意數量的 bytes 單向 hash 成 256 bit (32 bytes)
-	// 3. 取 hash 結果的後 20 bytes 作為地址
-	
-	fmt.Println("\n🏠 生成以太坊地址...")
-	fmt.Println("📘 原理：Keccak256(公鑰座標串聯) 取後20字節")
-	
-	// 串聯公鑰的 x,y 座標
-	pubKeyBytes := elliptic.Marshal(secp256k1.S256(), publicKey.X, publicKey.Y)
-	// 去掉前綴04
-	pubKeyBytes = pubKeyBytes[1:]
-	
-	fmt.Printf("📘 公鑰串聯: %x\n", pubKeyBytes)
-	
-	// 對公鑰進行 Keccak-256，得到一個 32 bytes 的資料
-	hash := sha3.NewLegacyKeccak256()
-	hash.Write(pubKeyBytes)
-	hashBytes := hash.Sum(nil)
-	
-	fmt.Printf("📘 Keccak256哈希: %x\n", hashBytes)
-	
-	// 取後20 bytes 作為地址
-	address := common.BytesToAddress(hashBytes[12:])
-	fmt.Printf("✅ 以太坊地址: %s\n", address.Hex())
-	
-	return address
+// 地址生成原理：
+// 1. 將公鑰的x,y座標串聯（去掉前綴04）
+// 2. 對串聯結果進行 Keccak-256 哈希 (Keccak-256 是可以將任意數量的 bytes 單向 hash 成 256 bit (32 bytes)
+// 3. 取 hash 結果的後 20 bytes 作為地址
+
+fmt.Println("\n🏠 生成以太坊地址...")
+fmt.Println("📘 原理：Keccak256(公鑰座標串聯) 取後20字節")
+
+// 串聯公鑰的 x,y 座標
+pubKeyBytes := elliptic.Marshal(secp256k1.S256(), publicKey.X, publicKey.Y)
+// 去掉前綴04
+pubKeyBytes = pubKeyBytes[1:]
+
+fmt.Printf("📘 公鑰串聯: %x\n", pubKeyBytes)
+
+// 對公鑰進行 Keccak-256，得到一個 32 bytes 的資料
+hash := sha3.NewLegacyKeccak256()
+hash.Write(pubKeyBytes)
+hashBytes := hash.Sum(nil)
+
+fmt.Printf("📘 Keccak256哈希: %x\n", hashBytes)
+
+// 取後20 bytes 作為地址
+address := common.BytesToAddress(hashBytes[12:])
+fmt.Printf("✅ 以太坊地址: %s\n", address.Hex())
+
+return address
 }
 ```
 
@@ -92,57 +95,57 @@ VRS 組成:
 
 * V (Recovery ID)
 
-    作用：恢復識別碼，用於確定正確的公鑰 `VRS[64]`
-    值域：通常是 27 或 28
-    用途：因為橢圓曲線簽名可能對應兩個不同的公鑰，V 幫助確定使用哪一個
+  作用：恢復識別碼，用於確定正確的公鑰 `VRS[64]`
+  值域：通常是 27 或 28
+  用途：因為橢圓曲線簽名可能對應兩個不同的公鑰，V 幫助確定使用哪一個
 
 * R (簽名的 R 值)
 
-    作用：ECDSA簽名的第一部分 `VRS[:32]`
-    性質：32 bytes 的 big.Int
-    來源：橢圓曲線上隨機點的 x 坐標
+  作用：ECDSA簽名的第一部分 `VRS[:32]`
+  性質：32 bytes 的 big.Int
+  來源：橢圓曲線上隨機點的 x 坐標
 
 * S (簽名的 S 值)
 
-    作用：ECDSA簽名的第二部分 `VRS[32:64]`
-    性質：32 bytes 的 big.Int
-    限制：必須在特定範圍內以防止簽名延展性攻擊
+  作用：ECDSA簽名的第二部分 `VRS[32:64]`
+  性質：32 bytes 的 big.Int
+  限制：必須在特定範圍內以防止簽名延展性攻擊
 
 <br>
 
 簽署實現:
 ```go
 func SignMessage(privateKey *ecdsa.PrivateKey, message []byte) ([]byte, error) {
-    // 簽屬原理：
-    // 1. 對消息進行 Keccak256
-    // 2. 使用ECDSA算法簽名
-    // 3. 生成 R,S 值和 Recover-ID
+// 簽屬原理：
+// 1. 對消息進行 Keccak256
+// 2. 使用ECDSA算法簽名
+// 3. 生成 R,S 值和 Recover-ID
 
-	fmt.Println("\n✍️ 簽署消息...")
-	fmt.Printf("📘 原始消息: %s\n", string(message))
-	
-	// 對消息進行哈希
-	messageHash := crypto.Keccak256(message)
-	fmt.Printf("📘 消息 HASH: %x\n", messageHash)
-	
-	// 簽屬
-	signature, err := crypto.Sign(messageHash, privateKey)
-	if err != nil {
-		return nil, fmt.Errorf("簽屬失敗: %v", err)
-	}
-	
-	// 解析VRS
-	r := new(big.Int).SetBytes(signature[:32])
-	s := new(big.Int).SetBytes(signature[32:64])
-	v := signature[64]
-	
-	fmt.Printf("📘 簽屬組成:\n")
-	fmt.Printf("   R: %x\n", r.Bytes())
-	fmt.Printf("   S: %x\n", s.Bytes())
-	fmt.Printf("   V: %d\n", v)
-	fmt.Printf("✅ 完整簽屬: %x\n", signature)
-	
-	return signature, nil
+fmt.Println("\n✍️ 簽署消息...")
+fmt.Printf("📘 原始消息: %s\n", string(message))
+
+// 對消息進行哈希
+messageHash := crypto.Keccak256(message)
+fmt.Printf("📘 消息 HASH: %x\n", messageHash)
+
+// 簽屬
+signature, err := crypto.Sign(messageHash, privateKey)
+if err != nil {
+return nil, fmt.Errorf("簽屬失敗: %v", err)
+}
+
+// 解析VRS
+r := new(big.Int).SetBytes(signature[:32])
+s := new(big.Int).SetBytes(signature[32:64])
+v := signature[64]
+
+fmt.Printf("📘 簽屬組成:\n")
+fmt.Printf("   R: %x\n", r.Bytes())
+fmt.Printf("   S: %x\n", s.Bytes())
+fmt.Printf("   V: %d\n", v)
+fmt.Printf("✅ 完整簽屬: %x\n", signature)
+
+return signature, nil
 }
 ```
 
@@ -151,26 +154,26 @@ func SignMessage(privateKey *ecdsa.PrivateKey, message []byte) ([]byte, error) {
 驗證簽名:
 ```go
 func VerifySignature(publicKey *ecdsa.PublicKey, message, signature []byte) bool {
-    // 驗證原理：
-    // 1. 重新計算消息哈希
-    // 2. 使用ECDSA驗證算法
-    // 3. 檢查簽名是否由對應私鑰生成
+// 驗證原理：
+// 1. 重新計算消息哈希
+// 2. 使用ECDSA驗證算法
+// 3. 檢查簽名是否由對應私鑰生成
 
-	fmt.Println("\n🔍 驗證簽名...")
-	
-	messageHash := crypto.Keccak256(message)
-	
-	// 移除 Recover-ID（64 bytes RSV 的最後一位）
-	signatureNoRecoveryID := signature[:len(signature)-1]
-	
-	valid := crypto.VerifySignature(
-		crypto.FromECDSAPub(publicKey),
-		messageHash,
-		signatureNoRecoveryID,
-	)
-	
-	fmt.Printf("📘 驗證結果: %t\n", valid)
-	return valid
+fmt.Println("\n🔍 驗證簽名...")
+
+messageHash := crypto.Keccak256(message)
+
+// 移除 Recover-ID（64 bytes RSV 的最後一位）
+signatureNoRecoveryID := signature[:len(signature)-1]
+
+valid := crypto.VerifySignature(
+crypto.FromECDSAPub(publicKey),
+messageHash,
+signatureNoRecoveryID,
+)
+
+fmt.Printf("📘 驗證結果: %t\n", valid)
+return valid
 }
 ```
 
@@ -187,24 +190,24 @@ func VerifySignature(publicKey *ecdsa.PublicKey, message, signature []byte) bool
 看實做: 從簽名恢復公鑰 (ecrecover)
 ```go
 func Ecrecover(message, signature []byte) (*ecdsa.PublicKey, error) {
-	// ecrecover 原理：
-	// 1. 從簽名的 r,s,v 值重建簽名點
-	// 2. 使用數學計算恢復原始公鑰
-	
-	fmt.Println("\n🔄 恢復公鑰 (ecrecover)...")
-	fmt.Println("📘 原理：從簽名的 VRS 值數學計算恢復公鑰")
-	
-	// hash 消息
-	messageHash := crypto.Keccak256(message)
-	// 恢復公鑰
-	publicKey, err := crypto.SigToPub(messageHash, signature)
-	if err != nil {
-		return nil, fmt.Errorf("恢復公鑰失敗: %v", err)
-	}
-	
-	fmt.Printf("✅ 恢復的公鑰: x=%x, y=%x\n", publicKey.X.Bytes(), publicKey.Y.Bytes())
-	
-	return publicKey, nil
+// ecrecover 原理：
+// 1. 從簽名的 r,s,v 值重建簽名點
+// 2. 使用數學計算恢復原始公鑰
+
+fmt.Println("\n🔄 恢復公鑰 (ecrecover)...")
+fmt.Println("📘 原理：從簽名的 VRS 值數學計算恢復公鑰")
+
+// hash 消息
+messageHash := crypto.Keccak256(message)
+// 恢復公鑰
+publicKey, err := crypto.SigToPub(messageHash, signature)
+if err != nil {
+return nil, fmt.Errorf("恢復公鑰失敗: %v", err)
+}
+
+fmt.Printf("✅ 恢復的公鑰: x=%x, y=%x\n", publicKey.X.Bytes(), publicKey.Y.Bytes())
+
+return publicKey, nil
 }
 ```
 

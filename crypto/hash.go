@@ -12,7 +12,6 @@ import (
 // 3. calculate smart contract storage mapping slot
 // 4. functionSelector = keccak256("transfer(address,uint256)")[0:4]
 // 5. calculate contract bytecode hash verify
-
 // Keccak256 calculates and returns the Keccak256 hash of the input data.
 func Keccak256(data ...[]byte) []byte {
 	h := sha3.NewLegacyKeccak256()

@@ -1,4 +1,111 @@
-# Frizo Blockchain
+# Frizo Blockchain 白皮書
+
+<br>
+
+----
+
+<br>
+
+## 基於 Go 語言的學術研究型區塊鏈平台
+
+**版本**: 1.0  
+**日期**: 2025年7月  
+**作者**: Johnny Wang
+
+---
+
+## 摘要
+
+Frizo Blockchain 是一個基於 Go 語言開發的學術研究型區塊鏈平台，旨在提供一個接近實際以太坊功能的完整區塊鏈實現。本項目專注於 Proof of Stake (PoS) 共識機制的深入研究，以及 Ethereum Virtual Machine (EVM) 和 Solidity 智能合約編譯器的實現。
+
+Frizo 的核心目標是為學術研究者提供一個可自定義、高度模組化的區塊鏈平台，支援完整的智能合約生態系統，並能夠進行各種共識機制和虛擬機器性能的實驗研究。
+
+<br>
+<br>
+
+## 1. 引言
+
+<br>
+
+### 1.1 背景
+隨著區塊鏈技術的快速發展，學術界對於深入理解和改進區塊鏈核心技術的需求日益增長。現有的區塊鏈平台缺乏廣泛的學術傳播，需要有越來越多的開發者能夠了解與學習其原理，才能逐漸壯大開發社群．
+
+### 1.2 目標
+- 實現一個完整的、接近以太坊功能的區塊鏈平台
+- 深入研究和優化 PoS 共識機制
+- 提供高性能的 EVM 實現
+- 支援 Solidity 智能合約的編譯和執行
+- 建立一個可用於學術研究的開放平台
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 2. 技術架構
+
+### 2.1 整體架構
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Application Layer                    │
+├─────────────────────────────────────────────────────────┤
+│         Solidity Compiler    │    Smart Contracts      │
+├─────────────────────────────────────────────────────────┤
+│                 EVM (Ethereum Virtual Machine)         │
+├─────────────────────────────────────────────────────────┤
+│        Transaction Pool      │    State Management     │
+├─────────────────────────────────────────────────────────┤
+│                   PoS Consensus Engine                 │
+├─────────────────────────────────────────────────────────┤
+│         Blockchain Core       │    Network Layer       │
+├─────────────────────────────────────────────────────────┤
+│                    Storage Layer                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 2.2 核心組件
+
+#### 2.2.1 區塊鏈核心 (Blockchain Core)
+- **區塊結構**: 採用與以太坊相容的區塊格式
+- **默克爾樹**: 用於交易驗證和狀態根計算
+- **區塊鏈存儲**: 基於 LevelDB 的持久化存儲
+- **創世區塊**: 可配置的創世狀態
+
+#### 2.2.2 PoS 共識機制 (Casper FFG)
+- **驗證者選擇**: 基於質押金額和隨機性的驗證者選擇算法 (參考 Ethereum 2.0)
+- **區塊提案**: 輪流提案機制
+- **最終性**: 基於 BFT 的快速最終性
+- **獎勵機制**: 動態獎勵和懲罰機制
+- **網路層協議**: 自行實現輕量級 P2P 網路協議
+    - 協議設計：基於 TCP 的自定義協議
+    - 節點發現：使用 Kademlia DHT 算法
+    - 消息傳播：Gossip 協議實現
+    - 優勢：更容易理解和修改，適合學術研究
+- **驗證者選擇**: 基於質押金額和隨機性的驗證者選擇算法 (參考 Ethereum 2.0)
+    - 最小質押量：32 FRZ（Frizo 代幣）
+    - 選擇算法：使用 RANDAO + VDF 實現可驗證的隨機性
+- **檢查點機制**: 每 32 個區塊設置一個檢查點
+- **投票規則**:
+    - 預投票（Prepare）和提交投票（Commit）的兩階段投票
+    - 需要 2/3 驗證者投票才能最終確認
+- **罰沒條件**:
+    - 雙重投票（Double Voting）
+    - 環繞投票（Surround Voting）
+
+#### 2.2.3 EVM 實現
+- **操作碼**: 完整的 EVM 操作碼支援
+- **執行環境**: 沙盒化的智能合約執行環境
+- **Gas 機制**: 精確的 Gas 計算和限制
+- **狀態管理**: 高效的狀態樹管理
+
+#### 2.2.4 Solidity 編譯器
+- **詞法分析**: Solidity 語法解析
+- **語義分析**: 類型檢查和語義驗證
+- **字節碼生成**: 生成 EVM 兼容的字節碼
+- **ABI 生成**: 自動生成合約 ABI
 
 <br>
 
@@ -6,56 +113,188 @@
 
 <br>
 
-A blockchain implements by golang (academic research purpose)
+## 3. 開發階段規劃
+
+### 階段 1: 基礎架構
+**目標**: 建立基本的區塊鏈核心功能
+
+**主要任務**:
+- 設計並實現基本的區塊和交易結構
+- 實現區塊鏈的基本數據結構
+- 建立存儲層 (LevelDB 集成)
+- 實現默克爾樹算法
+- 創建基礎的網路通信模組
+
+**可交付成果**:
+- 可以創建、存儲和查詢區塊的基本區塊鏈
+- 基本的 P2P 網路通信
+- 單元測試覆蓋率達到 80%
+
+### 階段 2: PoS 共識機制
+**目標**: 實現完整的 PoS 共識算法
+
+**主要任務**:
+- 設計驗證者管理系統
+- 實現質押機制
+- 開發區塊提案和投票算法
+- 實現分叉選擇規則
+- 建立獎勵和懲罰機制
+
+**可交付成果**:
+- 功能完整的 PoS 共識引擎
+- 驗證者可以質押和參與共識
+- 網路可以達成共識並產生區塊
+
+### 階段 3: EVM 實現
+**目標**: 實現高性能的 EVM
+
+**主要任務**:
+- 實現完整的 EVM 操作碼
+- 建立智能合約執行環境
+- 實現 Gas 計算機制
+- 開發狀態管理系統
+- 實現預編譯合約
+
+**可交付成果**:
+- 可以執行 EVM 字節碼的虛擬機器
+- 支援智能合約的部署和調用
+- 完整的狀態管理系統
+
+### 階段 4: Solidity 編譯器
+**目標**: 實現基礎的 Solidity 編譯器
+
+**主要任務**:
+- 設計並實現詞法分析器
+- 開發語法分析器
+- 實現語義分析
+- 建立字節碼生成器
+- 實現 ABI 生成
+
+**可交付成果**:
+- 可以編譯基本 Solidity 合約的編譯器
+- 生成與 EVM 兼容的字節碼
+- 自動生成合約 ABI
+
+### 階段 5: 整合與優化
+**目標**: 整合所有組件並進行性能優化
+
+**主要任務**:
+- 整合所有核心組件
+- 性能測試和優化
+- 建立完整的測試套件
+- 實現監控和日誌系統
+- 編寫文檔和使用指南
+
+**可交付成果**:
+- 完整的 Frizo Blockchain 平台
+- 性能測試報告
+- 完整的技術文檔
+
+### 階段 6: 高級功能
+**目標**: 添加高級功能和研究特性
+
+**主要任務**:
+- 實現跨鏈通信協議
+- 添加隱私保護功能
+- 實現分片技術
+- 開發圖形化界面
+- 建立開發者工具
 
 <br>
 
-[Frizo Blockchain WhitePaper](docs/whitepaper/whitepaper.md)
+## 3.5 最小可行產品 (MVP) 定義
 
-Project Structure:
+### MVP 功能範圍 (時程：3-4 個月)
+1. **區塊鏈核心**
+- 基本區塊創建和驗證
+- 簡化版 PoS（單一驗證者）
+- 本地存儲
 
-```
-frizo-blockchain/
-├── cmd/
-│   └── frizo/              # Main application entry point
-│       └── main.go         # Only main package here
-├── internal/               # Private packages (can't be imported by other projects)
-│   ├── blockchain/         # Core blockchain logic
-│   │   ├── block.go
-│   │   ├── chain.go
-│   │   └── transaction.go
-│   ├── consensus/          # Consensus algorithms
-│   │   ├── pos.go
-│   │   └── pow.go
-│   ├── network/           # P2P networking
-│   │   ├── peer.go
-│   │   └── protocol.go
-│   ├── wallet/            # Wallet functionality
-│   │   ├── wallet.go
-│   │   └── keys.go
-│   └── storage/           # Database/storage layer
-│       ├── leveldb.go
-│       └── memory.go
-├── pkg/                   # Public packages (can be imported by other projects)
-│   ├── crypto/            # Cryptographic utilities
-│   │   ├── hash.go
-│   │   └── signature.go
-│   └── utils/             # General utilities
-│       ├── logger.go
-│       └── config.go
-├── api/                   # API definitions (REST, gRPC, etc.)
-│   ├── rest/
-│   └── rpc/
-├── config/                # Configuration files
-├── scripts/               # Build and deployment scripts
-├── docs/                  # Documentation
-├── go.mod
-├── go.sum
-├── Makefile
-└── README.md
-```
+2. **EVM 子集**
+- 支援核心操作碼（約 50 個）
+- 基本智能合約部署
+- 簡單的狀態管理
 
-## Logs
+3. **網路功能**
+- 2-3 個節點的私有網路
+- 基本的區塊同步
 
-* [EP1](https://www.youtube.com/watch?v=oCm46sUILcs&list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&index=1&t=176s&ab_channel=AnthonyGG)
-* [EP2](https://www.youtube.com/watch?v=_f6SNxI2mog&list=PL0xRBLFXXsP6-hxQmCDcl_BHJMm0mhxx7&index=2&ab_channel=AnthonyGG)
+<br>
+
+---
+
+<br>
+
+## 4. 技術特性
+
+### 4.1 性能指標
+- **TPS**: 目標達到 1000+ TPS
+- **確認時間**: 平均 2-3 秒
+- **最終性**: 12 秒內達成最終性
+- **網路延遲**: 支援全球部署
+
+### 4.2 安全性
+- **加密算法**: 使用 secp256k1 和 Keccak-256
+- **共識安全**: 支援 1/3 Byzantine 容錯
+- **智能合約安全**: 內建安全檢查機制
+
+### 4.3 可擴展性
+- **模組化設計**: 可插拔的共識算法
+- **API 接口**: 完整的 JSON-RPC API
+- **多語言支援**: 支援多種編程語言的 SDK
+
+
+### 4.4 預期研究貢獻
+
+#### 技術創新
+1. **簡化版 Casper FFG**
+- 降低實現複雜度，便於教學
+- 保留核心安全性保證
+
+2. **模組化 EVM**
+- 可插拔的操作碼實現
+- 便於實驗新的 VM 特性
+
+3. **視覺化工具**
+- 共識過程視覺化
+- 區塊鏈狀態實時監控
+
+
+#### 學術產出
+- 預計發表 1-2 篇技術報告
+- 開源所有代碼和文檔
+- 製作教學材料和實驗指南
+
+---
+
+<br>
+
+## 5. 研究應用
+
+### 5.1 共識機制研究
+- PoS 變體的性能比較
+- 不同質押策略的經濟分析
+- 共識算法的安全性分析
+
+### 5.2 虛擬機器研究
+- EVM 性能優化
+- 新操作碼的設計和實現
+- 智能合約執行效率研究
+
+### 5.3 編程語言研究
+- 智能合約語言的設計
+- 編譯器優化技術
+- 靜態分析工具開發
+
+<br>
+
+---
+
+
+## 6. 總結
+
+Frizo Blockchain 將成為一個功能完整的學術研究型區塊鏈平台。通過分階段的開發計劃，將逐步實現從基礎架構到高級功能的完整生態系統。
+
+---
+
+**聯絡方式**: [Email: Jarvan1110@gmail.com]

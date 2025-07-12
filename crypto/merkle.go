@@ -3,7 +3,6 @@ package crypto
 import (
 	"fmt"
 	"frizo-blockchain/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"math"
 	"strings"
 )
@@ -27,8 +26,7 @@ const (
 
 func defaultHashFunc(data []byte) common.Hash {
 	//  Using Keccak-256 as Default to get a 32-bytes raw data
-	rawHashBytes := crypto.Keccak256(data)
-	return common.BytesToHash(rawHashBytes)
+	return Keccak256Hash(data)
 }
 
 // MerkleProof Merkle Proof

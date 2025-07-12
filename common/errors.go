@@ -52,3 +52,11 @@ var (
 	// ErrInvalidChainID is returned when the chain ID is invalid
 	ErrInvalidChainID = errors.New("invalid chain ID")
 )
+
+func ErrInvalidData(s string) error {
+	return errors.New(s)
+}
+
+func ErrFailedToGenerateMerkleProof(s string) error {
+	return errors.New(s)
+}

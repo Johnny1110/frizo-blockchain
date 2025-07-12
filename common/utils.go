@@ -2,8 +2,17 @@ package common
 
 import (
 	"encoding/hex"
+	"math/rand"
 	"strings"
 )
+
+func RandomHash() Hash {
+	hash := make([]byte, 32)
+	if _, err := rand.Read(hash); err != nil {
+		panic(err)
+	}
+	return Hash(hash)
+}
 
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".

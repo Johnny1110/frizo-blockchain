@@ -1,5 +1,18 @@
 # Modified Merkle Patricia Tree (MPT)
 
+
+<br>
+
+---
+
+<br>
+
+MPT 不只是 "改良版 Merkle Tree"，而是結合了三種數據結構：
+
+* Merkle Tree：提供加密證明
+* Patricia Tree (Radix Tree)：提供路徑壓縮
+* 16 進制編碼：每個節點最多 16 個子節點
+
 ## 主要特點：
 
 1. 四種節點類型
@@ -9,6 +22,16 @@
 * 擴展節點 (EXTENSION)：用於路徑壓縮，MPT 特有
 * 分支節點 (BRANCH)：16 叉分支，而非二叉
 
+```go
+type NodeType uint8
+const (
+    BLANK     NodeType = iota  // 空節點
+    LEAF      NodeType = iota  // 葉子節點：[路徑編碼, 值]
+    EXTENSION NodeType = iota  // 擴展節點：[共享路徑, 下一節點哈希]
+    BRANCH    NodeType = iota  // 分支節點：[16個子節點哈希, 值(可選)]
+)
+```
+
 <br>
 
 2. 路徑編碼
@@ -17,6 +40,23 @@
 * 緊湊編碼（Hex-Prefix Encoding）用於節省空間
 * 支持奇偶長度路徑的處理
 
+```go
+// 鍵值轉換流程
+原始鍵: "cat" → [0x63, 0x61, 0x74]
+十六進制路徑: [6, 3, 6, 1, 7, 4]  // 每個字節拆分為兩個 nibble
+緊湊編碼: 用於節省存儲空間
+```
+
+緊湊編碼 (Hex-Prefix Encoding) 規則：
+
+```
+第一個半字節的含義：
+00: EXTENSION 節點，偶數長度路徑
+01: EXTENSION 節點，奇數長度路徑  
+10: LEAF 節點，偶數長度路徑
+11: LEAF 節點，奇數長度路徑
+```
+
 <br>
 
 3. 動態操作
@@ -24,6 +64,54 @@
 * 插入：自動處理節點分裂和路徑壓縮
 * 查詢：通過鍵路徑導航查找值
 * 刪除：自動合併節點，保持樹的最優結構
+
+<br>
+
+### MPT 的插入比 Merkle Tree 複雜得多，需要處理多種情況：
+
+```go
+insert(node, path, value) {
+    switch node.Type {
+    case LEAF:
+        return insertIntoLeaf(node, path, value)    // 可能需要分裂
+    case EXTENSION:
+        return insertIntoExtension(node, path, value) // 可能需要分裂
+    case BRANCH:
+        return insertIntoBranch(node, path, value)   // 相對簡單
+    }
+}
+```
+
+每種插入都可能導致節點類型變化
+
+<br>
+
+### 節點合併與簡化邏輯
+
+這是 MPT 效率的關鍵：
+
+```go
+// 刪除後可能需要簡化
+if (branch節點只有1個子節點 && 無值) {
+    轉換為 EXTENSION 或 LEAF 節點
+}
+
+if (extension節點的子節點也是extension) {
+    合併兩個 extension 節點
+}
+```
+
+<br>
+
+### 序列化與哈希計算
+
+每種節點類型的序列化格式不同：
+
+```go
+LEAF: [nodeType, 緊湊編碼路徑, 值]
+EXTENSION: [nodeType, 緊湊編碼路徑, 子節點哈希]
+BRANCH: [nodeType, 16個子節點哈希, 值(可選)]
+```
 
 <br>
 
@@ -36,6 +124,81 @@
 | 路徑  | 固定索引  | 動態鍵路徑  |
 | 用途  | 靜態數據驗證  | 動態鍵值存儲  |
 | 空間效率  | 固定層高  | 路徑壓縮 |
+
+<br>
+<br>
+<br>
+<br>
+
+
+## 實作計畫
+
+### 階段 1: 基礎數據結構
+
+* 定義 MPTNode 結構
+* 實現路徑編碼函數 (HexToCompact, CompactToHex)
+* 實現基本的節點創建函數
+
+### 階段 2: 核心算法
+
+* 實現 Get 操作（相對簡單，先實作）
+* 實現 Put 操作（最複雜）
+* 實現 Delete 操作（需要節點簡化邏輯）
+
+### 階段 3: 優化與驗證
+
+* 實現節點哈希計算與緩存
+* 實現 Merkle Proof 生成
+* 完整測試套件
+
+<br>
+
+### 在開始實作前，必須具備的概念：
+
+* 四種節點類型的具體用途與結構
+* 十六進制路徑編碼的完整流程
+* 緊湊編碼的規則與實現
+* 插入操作的所有分支情況
+* 節點分裂與合併的邏輯
+* 與普通 Merkle Tree 的根本差異
+
+<br>
+
+### 注意事項
+
+* 路徑處理陷阱
+
+```go
+// 錯誤：直接使用字節作為路徑
+path := key  
+
+// 正確：轉換為十六進制路徑  
+path := KeyToHex(key)  // [0x63, 0x61] → [6,3,6,1]
+```
+
+<br>
+
+* 節點分裂邏輯
+    插入到 LEAF 節點時的分裂是最複雜的：
+
+```go
+// 需要考慮：
+// 1. 公共前綴長度
+// 2. 剩餘路徑處理  
+// 3. 新舊值的存放位置
+// 4. 是否需要創建 EXTENSION 節點
+```
+
+<br>
+
+* 邊界檢查
+
+```go
+// 空路徑、奇數長度路徑、根節點更新等
+if len(path) == 0 {
+    // 在 BRANCH 節點存值
+}
+```
 
 <br>
 <br>

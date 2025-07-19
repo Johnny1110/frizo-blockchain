@@ -163,5 +163,51 @@ func Test_MPT_Put_NewPathHasRemaining(t *testing.T) {
 	fmt.Println("root: ", mpt.root)
 	fmt.Println("child-branch: ", mpt.root.Child)
 	fmt.Println("first: ", mpt.root.Child.Children[0])
+}
 
+func mockAExtNode(t *testing.T) *ModifiedMerklePatriciaTree {
+	mpt := NewMPT()
+
+	key_1 := []byte{0x01, 0x02, 0x03}
+	key_2 := []byte{0x01, 0x02, 0x03, 0x04, 0x05}
+	err := mpt.Put(key_1, key_1)
+	assert.Nil(t, err)
+	err = mpt.Put(key_2, key_2)
+	assert.Nil(t, err)
+	return mpt
+}
+
+func Test_MPT_Put_insertIntoExt_FullMatch(t *testing.T) {
+	mpt := mockAExtNode(t)
+	fmt.Println("==============================================")
+	fmt.Println("root: ", mpt.root)
+	fmt.Println("child-branch: ", mpt.root.Child)
+	fmt.Println("first: ", mpt.root.Child.Children[0])
+	fmt.Println("==============================================")
+
+	key := []byte{0x01, 0x02, 0x03}
+	err := mpt.Put(key, []byte{0xAA, 0xBB, 0xCC})
+	assert.Nil(t, err)
+
+	fmt.Println("root:", mpt.root)
+	fmt.Println("root.child:", mpt.root.Child)
+}
+
+func Test_MPT_Put_insertIntoExt_S_2_1(t *testing.T) {
+	mpt := mockAExtNode(t)
+	fmt.Println("==============================================")
+	fmt.Println("root: ", mpt.root)
+	fmt.Println("child-branch: ", mpt.root.Child)
+	fmt.Println("first: ", mpt.root.Child.Children[0])
+	fmt.Println("==============================================")
+
+	key := []byte{0x01, 0x02}
+	err := mpt.Put(key, []byte{0xAA, 0xBB, 0xCC})
+	assert.Nil(t, err)
+
+	fmt.Println("root:", mpt.root)
+	fmt.Println("root.child:", mpt.root.Child)
+	fmt.Println("origin.ext:", mpt.root.Child.Children[0])
+	fmt.Println("origin.ext.ChildBranch:", mpt.root.Child.Children[0].Child)
+	fmt.Println("?:", mpt.root.Child.Children[0].Child.Children[0])
 }

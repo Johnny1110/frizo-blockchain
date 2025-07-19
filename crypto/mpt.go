@@ -281,7 +281,7 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 		return extension, nil
 	}
 
-	// 2-3: only new Path has remaining >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	// 2-4: only new Path has remaining >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	if commonPathLen == len(leaf.Path) && commonPathLen < len(path) {
 		// we need create a EXTENSION node to compress the path
 		extension := &MPTNode{
@@ -309,9 +309,74 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 }
 
 // insertIntoExtension Handle insert into EXTENSION node
+// EXTENSION only have 1 child branch and cannot have any value.
 func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []byte, value []byte) (*MPTNode, error) {
-	// TODO
-	return nil, nil
+	commonLen := commonPrefixLen(ext.Path, path)
+	if commonLen == len(ext.Path) && commonLen == len(path) {
+		// overwrite value to EXTENSION's child branch -> branch.value
+		ext.Child.Value = value
+		ext.Child.Dirty = true
+		return ext, nil
+	}
+
+	// ---------------------------------------------------------------------------
+	// S-1: EXTENSION path length equals to commonLen
+	// ---------------------------------------------------------------------------
+	if len(ext.Path) == commonLen {
+		remainingPath := path[commonLen:]
+		// insert remainPath and value into child Branch.
+		newChild, err := t.insert(ext.Child, remainingPath, value)
+		if err != nil {
+			return nil, err
+		}
+		ext.Child = newChild
+		return ext, nil
+	}
+
+	// ---------------------------------------------------------------------------
+	// S-2: need split a new EXTENSION
+	// ---------------------------------------------------------------------------
+	if commonLen < len(ext.Path) {
+
+		// 2-1: input path equals to common path >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		if len(path) == commonLen {
+			newBranch := &MPTNode{
+				NodeType: BRANCH,
+				Value:    value, // store value in new Branch
+				Dirty:    true,
+			}
+
+			extPathRemain := ext.Path[commonLen:]
+			extPathIndex := extPathRemain[0]
+			if len(extPathRemain)-1 == 0 {
+				// without first byte, no more ext path left.
+				newBranch.Children[extPathIndex] = ext.Child
+			} else {
+				newExt := &MPTNode{
+					NodeType: EXTENSION,
+					Path:     extPathRemain[1:], // remove first element
+					Child:    ext.Child,
+					Dirty:    true,
+				}
+				newBranch.Children[extPathIndex] = newExt
+			}
+
+			if commonLen > 0 {
+				ext.Path = ext.Path[:commonLen]
+				ext.Child = newBranch
+				return ext, nil
+			} else {
+				return newBranch, nil
+			}
+		}
+	}
+
+	// 2-1: input path have some part diff with common >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	if commonLen < len(path) {
+		// TODO: implements.
+	}
+
+	return nil, errors.New("invalid insert MPT EXTENSION node conditions")
 }
 
 // insertIntoBranch Handle insert into BRANCH node

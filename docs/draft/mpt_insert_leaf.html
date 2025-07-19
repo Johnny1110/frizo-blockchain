@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>insertIntoLeaf() 邏輯分析</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .scenario {
+            margin: 30px 0;
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border-left: 5px solid #3498db;
+        }
+
+        .scenario-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .case-example {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .before-after {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .before, .after {
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .before {
+            background: #fff5f5;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .after {
+            background: #f0fff4;
+            border-left: 4px solid #27ae60;
+        }
+
+        .tree-structure {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+            white-space: pre-line;
+        }
+
+        .logic-flow {
+            background: linear-gradient(135deg, #74b9ff 0%, #0984e3 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .step {
+            background: white;
+            color: #333;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #74b9ff;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        .highlight {
+            background: #f1c40f;
+            color: #2c3e50;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .path-display {
+            font-family: 'Courier New', monospace;
+            background: #e8f4fd;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: inline-block;
+            margin: 2px;
+        }
+
+        .decision-tree {
+            background: white;
+            border: 2px solid #bdc3c7;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .decision-node {
+            background: #3498db;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 10px;
+            display: inline-block;
+        }
+
+        .result-node {
+            background: #27ae60;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 10px;
+            display: inline-block;
+        }
+
+        .arrow {
+            font-size: 1.5em;
+            color: #e74c3c;
+            margin: 0 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🔍 insertIntoLeaf() 完整邏輯分析</h1>
+
+    <!-- 函數簽名和目的 -->
+    <div class="scenario">
+        <h2 class="scenario-title">📋 函數目的與簽名</h2>
+        <div class="code-block">
+            func insertIntoLeaf(leaf *MPTNode, path []byte, value []byte) (*MPTNode, error)
+
+            目的：向現有的 LEAF 節點插入新的鍵值對
+            輸入：
+            - leaf: 現有的葉子節點
+            - path: 新插入的十六進制路徑
+            - value: 新插入的值
+            輸出：
+            - 新的節點（可能是 LEAF、BRANCH、或 EXTENSION）
+        </div>
+    </div>
+
+    <!-- 決策流程圖 -->
+    <div class="scenario">
+        <h2 class="scenario-title">🌳 決策流程圖</h2>
+        <div class="decision-tree">
+            <div style="text-align: center;">
+                <div class="decision-node">計算公共前綴長度<br>commonLen = commonPrefixLen(leaf.Path, path)</div>
+                <div class="arrow">↓</div>
+                <div class="decision-node">commonLen == len(leaf.Path) && commonLen == len(path)?</div>
+                <div style="display: flex; justify-content: space-around; align-items: center;">
+                    <div>
+                        <div class="arrow">YES →</div>
+                        <div class="result-node">情況1：完全匹配<br>直接更新葉子節點的值</div>
+                    </div>
+                    <div>
+                        <div class="arrow">NO →</div>
+                        <div class="result-node">情況2：需要分裂<br>創建分支結構</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 情況1：完全匹配 -->
+    <div class="scenario">
+        <h2 class="scenario-title">✅ 情況1：完全匹配 (路徑相同)</h2>
+        <div class="case-example">
+            <strong>條件：</strong><span class="highlight">commonLen == len(leaf.Path) && commonLen == len(path)</span>
+
+            <div class="before-after">
+                <div class="before">
+                    <strong>插入前：</strong><br>
+                    <div class="path-display">leaf.Path = [6,3,6,1,7,4]</div><br>
+                    <div class="path-display">leaf.Value = "cat"</div>
+                </div>
+                <div class="after">
+                    <strong>插入後：</strong><br>
+                    <div class="path-display">path = [6,3,6,1,7,4]</div><br>
+                    <div class="path-display">value = "feline"</div><br>
+                    <strong>結果：直接更新值</strong>
+                </div>
+            </div>
+
+            <div class="code-block">
+                if commonLen == len(leaf.Path) && commonLen == len(path) {
+                leaf.Value = value  // 直接更新
+                return leaf, nil
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- 情況2：需要分裂 -->
+    <div class="scenario">
+        <h2 class="scenario-title">🔀 情況2：需要分裂 (路徑不同)</h2>
+        <p>當路徑不完全匹配時，需要創建分支結構。這裡有 <strong>4 個子情況</strong>：</p>
+
+        <!-- 子情況 2.1 -->
+        <div class="case-example">
+            <h3>📌 子情況 2.1：兩個路徑都有剩餘</h3>
+            <p><strong>條件：</strong><span class="highlight">commonLen < len(leaf.Path) && commonLen < len(path)</span></p>
+
+            <div class="before-after">
+                <div class="before">
+                    <strong>原有：</strong><br>
+                    <div class="path-display">leaf.Path = [6,3,6,1,7,4]</div>
+                    <div class="path-display">leaf.Value = "cat"</div>
+                </div>
+                <div class="after">
+                    <strong>插入：</strong><br>
+                    <div class="path-display">path = [6,3,6,1,7,2]</div>
+                    <div class="path-display">value = "car"</div>
+                    <div class="path-display">commonLen = 5</div>
+                </div>
+            </div>
+
+            <div class="tree-structure">
+                結果結構：
+                EXTENSION [6,3,6,1,7]
+                └── BRANCH
+                ├── [2] → LEAF [] = "car"
+                └── [4] → LEAF [] = "cat"
+            </div>
+
+            <div class="logic-flow">
+                <strong>處理步驟：</strong>
+                <div class="step">1. 創建 BRANCH 節點</div>
+                <div class="step">2. 處理原葉子：剩餘路徑 = [4]，在分支索引 4 創建 LEAF [] = "cat"</div>
+                <div class="step">3. 處理新路徑：剩餘路徑 = [2]，在分支索引 2 創建 LEAF [] = "car"</div>
+                <div class="step">4. 創建 EXTENSION [6,3,6,1,7] 指向 BRANCH</div>
+            </div>
+        </div>
+
+        <!-- 子情況 2.2 -->
+        <div class="case-example">
+            <h3>📌 子情況 2.2：只有原葉子有剩餘</h3>
+            <p><strong>條件：</strong><span class="highlight">commonLen < len(leaf.Path) && commonLen == len(path)</span></p>
+
+            <div class="before-after">
+                <div class="before">
+                    <strong>原有：</strong><br>
+                    <div class="path-display">leaf.Path = [6,3,6,1,7,4]</div>
+                    <div class="path-display">leaf.Value = "cat"</div>
+                </div>
+                <div class="after">
+                    <strong>插入：</strong><br>
+                    <div class="path-display">path = [6,3,6,1]</div>
+                    <div class="path-display">value = "prefix"</div>
+                    <div class="path-display">commonLen = 4</div>
+                </div>
+            </div>
+
+            <div class="tree-structure">
+                結果結構：
+                EXTENSION [6,3,6,1]
+                └── BRANCH (value = "prefix")
+                └── [7] → LEAF [4] = "cat"
+            </div>
+
+            <div class="logic-flow">
+                <strong>處理步驟：</strong>
+                <div class="step">1. 創建 BRANCH 節點，值設為 "prefix"</div>
+                <div class="step">2. 處理原葉子：剩餘路徑 = [7,4]，分支索引 7，創建 LEAF [4] = "cat"</div>
+                <div class="step">3. 創建 EXTENSION [6,3,6,1] 指向 BRANCH</div>
+            </div>
+        </div>
+
+        <!-- 子情況 2.3 -->
+        <div class="case-example">
+            <h3>📌 子情況 2.3：只有新路徑有剩餘</h3>
+            <p><strong>條件：</strong><span class="highlight">commonLen == len(leaf.Path) && commonLen < len(path)</span></p>
+
+            <div class="before-after">
+                <div class="before">
+                    <strong>原有：</strong><br>
+                    <div class="path-display">leaf.Path = [6,3,6,1]</div>
+                    <div class="path-display">leaf.Value = "prefix"</div>
+                </div>
+                <div class="after">
+                    <strong>插入：</strong><br>
+                    <div class="path-display">path = [6,3,6,1,7,4]</div>
+                    <div class="path-display">value = "cat"</div>
+                    <div class="path-display">commonLen = 4</div>
+                </div>
+            </div>
+
+            <div class="tree-structure">
+                結果結構：
+                BRANCH (value = "prefix")
+                └── [7] → LEAF [4] = "cat"
+            </div>
+
+            <div class="logic-flow">
+                <strong>處理步驟：</strong>
+                <div class="step">1. 創建 BRANCH 節點，值設為 "prefix" (原葉子的值)</div>
+                <div class="step">2. 處理新路徑：剩餘路徑 = [7,4]，分支索引 7，創建 LEAF [4] = "cat"</div>
+                <div class="step">3. 不需要 EXTENSION，直接返回 BRANCH</div>
+            </div>
+        </div>
+
+        <!-- 子情況 2.4 -->
+        <div class="case-example">
+            <h3>📌 子情況 2.4：沒有公共前綴</h3>
+            <p><strong>條件：</strong><span class="highlight">commonLen == 0</span></p>
+
+            <div class="before-after">
+                <div class="before">
+                    <strong>原有：</strong><br>
+                    <div class="path-display">leaf.Path = [6,3,6,1]</div>
+                    <div class="path-display">leaf.Value = "cat"</div>
+                </div>
+                <div class="after">
+                    <strong>插入：</strong><br>
+                    <div class="path-display">path = [4,2,6,7]</div>
+                    <div class="path-display">value = "dog"</div>
+                    <div class="path-display">commonLen = 0</div>
+                </div>
+            </div>
+
+            <div class="tree-structure">
+                結果結構：
+                BRANCH
+                ├── [4] → LEAF [2,6,7] = "dog"
+                └── [6] → LEAF [3,6,1] = "cat"
+            </div>
+
+            <div class="logic-flow">
+                <strong>處理步驟：</strong>
+                <div class="step">1. 創建 BRANCH 節點</div>
+                <div class="step">2. 分支索引 6：創建 LEAF [3,6,1] = "cat"</div>
+                <div class="step">3. 分支索引 4：創建 LEAF [2,6,7] = "dog"</div>
+                <div class="step">4. 直接返回 BRANCH (沒有公共前綴)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完整代碼實現 -->
+    <div class="scenario">
+        <h2 class="scenario-title">💻 完整代碼實現</h2>
+        <div class="code-block">
+            func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, value []byte) (*MPTNode, error) {
+            commonLen := commonPrefixLen(leaf.Path, path)
+
+            // 情況1：完全匹配，直接更新值
+            if commonLen == len(leaf.Path) && commonLen == len(path) {
+            leaf.Value = value
+            return leaf, nil
+            }
+
+            // 情況2：需要分裂，創建分支節點
+            branch := &MPTNode{
+            NodeType: BRANCH,
+            Dirty:    true,
+            }
+
+            // 處理原葉子節點的剩餘路徑
+            if commonLen < len(leaf.Path) {
+            branchIndex := leaf.Path[commonLen]
+            remainingPath := leaf.Path[commonLen+1:]
+
+            if len(remainingPath) == 0 {
+            // 路徑用完，值存在分支節點
+            branch.Value = leaf.Value
+            } else {
+            // 創建新的葉子節點
+            branch.Children[branchIndex] = &MPTNode{
+            NodeType: LEAF,
+            Path:     remainingPath,
+            Value:    leaf.Value,
+            Dirty:    true,
+            }
+            }
+            } else {
+            // commonLen == len(leaf.Path)，原葉子路徑是新路徑的前綴
+            branch.Value = leaf.Value
+            }
+
+            // 處理新插入路徑的剩餘部分
+            if commonLen < len(path) {
+            branchIndex := path[commonLen]
+            remainingPath := path[commonLen+1:]
+
+            if len(remainingPath) == 0 {
+            // 路徑用完，值存在分支節點
+            if branch.Value != nil {
+            return nil, errors.New("conflict: both paths end at branch node")
+            }
+            branch.Value = value
+            } else {
+            // 創建新的葉子節點
+            if branch.Children[branchIndex] != nil {
+            return nil, errors.New("conflict: branch index already occupied")
+            }
+            branch.Children[branchIndex] = &MPTNode{
+            NodeType: LEAF,
+            Path:     remainingPath,
+            Value:    value,
+            Dirty:    true,
+            }
+            }
+            }
+
+            // 如果有公共前綴，創建擴展節點
+            if commonLen > 0 {
+            return &MPTNode{
+            NodeType: EXTENSION,
+            Path:     path[:commonLen],
+            Child:    branch,
+            Dirty:    true,
+            }, nil
+            }
+
+            return branch, nil
+            }
+        </div>
+    </div>
+
+    <!-- 關鍵要點總結 -->
+    <div class="scenario">
+        <h2 class="scenario-title">🎯 關鍵要點總結</h2>
+
+        <table>
+            <thead>
+            <tr>
+                <th>情況</th>
+                <th>條件</th>
+                <th>處理方式</th>
+                <th>返回節點類型</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>完全匹配</td>
+                <td>commonLen == len(both paths)</td>
+                <td>直接更新值</td>
+                <td>LEAF</td>
+            </tr>
+            <tr>
+                <td>兩路徑都有剩餘</td>
+                <td>commonLen < len(both paths)</td>
+                <td>創建分支 + 兩個子節點</td>
+                <td>EXTENSION → BRANCH</td>
+            </tr>
+            <tr>
+                <td>原葉子有剩餘</td>
+                <td>commonLen < len(leaf) && == len(path)</td>
+                <td>分支節點存新值 + 子節點存原值</td>
+                <td>EXTENSION → BRANCH</td>
+            </tr>
+            <tr>
+                <td>新路徑有剩餘</td>
+                <td>commonLen == len(leaf) && < len(path)</td>
+                <td>分支節點存原值 + 子節點存新值</td>
+                <td>BRANCH</td>
+            </tr>
+            <tr>
+                <td>無公共前綴</td>
+                <td>commonLen == 0</td>
+                <td>直接創建分支 + 兩個子節點</td>
+                <td>BRANCH</td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div class="logic-flow">
+            <strong>💡 核心理解：</strong>
+            <div class="step">1. <strong>公共前綴</strong>：決定是否需要 EXTENSION 節點</div>
+            <div class="step">2. <strong>分支索引</strong>：公共前綴後的第一個 nibble</div>
+            <div class="step">3. <strong>剩餘路徑</strong>：分支索引後的所有 nibbles</div>
+            <div class="step">4. <strong>值的位置</strong>：路徑用完時存在分支節點，否則創建 LEAF 節點</div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

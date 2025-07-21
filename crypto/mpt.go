@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"errors"
+	"fmt"
 	"frizo-blockchain/common"
 )
 
@@ -47,8 +48,7 @@ type MPTNode struct {
 	NodeType MPTNodeType
 	Path     []byte
 	Value    []byte
-	Children [16]*MPTNode // only BRANCH node have Children
-	Child    *MPTNode     // only for EXTENSION node have 1 child
+	Children [16]*MPTNode // only BRANCH node have 16 Children, EXTENSION node have 1 child
 	Hash     *common.Hash
 	Dirty    bool // remark is modified, optimized hash data
 }
@@ -242,8 +242,9 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 			NodeType: EXTENSION,
 			Path:     leaf.Path[:commonPathLen],
 			Dirty:    true,
-			Child:    newBranch, // EXTENSION only have 1 child BRANCH.
 		}
+		// EXTENSION only have 1 child BRANCH.
+		extension.Children[0] = newBranch
 
 		// leaf-1:
 		originIdx := leaf.Path[commonPathLen]
@@ -268,8 +269,8 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 			NodeType: EXTENSION,
 			Path:     leaf.Path[:commonPathLen],
 			Dirty:    true,
-			Child:    newBranch, // EXTENSION only have 1 child BRANCH.
 		}
+		extension.Children[0] = newBranch
 
 		// leaf-1:
 		originIdx := leaf.Path[commonPathLen]
@@ -288,8 +289,8 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 			NodeType: EXTENSION,
 			Path:     leaf.Path[:commonPathLen],
 			Dirty:    true,
-			Child:    newBranch, // EXTENSION only have 1 child BRANCH.
 		}
+		extension.Children[0] = newBranch
 
 		// leaf-1:
 		newBranch.Value = leaf.Value
@@ -312,10 +313,13 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 // EXTENSION only have 1 child branch and cannot have any value.
 func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []byte, value []byte) (*MPTNode, error) {
 	commonLen := commonPrefixLen(ext.Path, path)
+
+	fmt.Println("commonPrefixLen: ", commonLen)
+
 	if commonLen == len(ext.Path) && commonLen == len(path) {
 		// overwrite value to EXTENSION's child branch -> branch.value
-		ext.Child.Value = value
-		ext.Child.Dirty = true
+		ext.Children[0].Value = value
+		ext.Children[0].Dirty = true
 		return ext, nil
 	}
 
@@ -325,11 +329,11 @@ func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []by
 	if len(ext.Path) == commonLen {
 		remainingPath := path[commonLen:]
 		// insert remainPath and value into child Branch.
-		newChild, err := t.insert(ext.Child, remainingPath, value)
+		newChild, err := t.insert(ext.Children[0], remainingPath, value)
 		if err != nil {
 			return nil, err
 		}
-		ext.Child = newChild
+		ext.Children[0] = newChild
 		return ext, nil
 	}
 
@@ -350,30 +354,54 @@ func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []by
 			extPathIndex := extPathRemain[0]
 			if len(extPathRemain)-1 == 0 {
 				// without first byte, no more ext path left.
-				newBranch.Children[extPathIndex] = ext.Child
+				newBranch.Children[extPathIndex] = ext.Children[0]
 			} else {
 				newExt := &MPTNode{
 					NodeType: EXTENSION,
 					Path:     extPathRemain[1:], // remove first element
-					Child:    ext.Child,
 					Dirty:    true,
 				}
+				newExt.Children[0] = ext.Children[0]
 				newBranch.Children[extPathIndex] = newExt
 			}
 
-			if commonLen > 0 {
-				ext.Path = ext.Path[:commonLen]
-				ext.Child = newBranch
-				return ext, nil
-			} else {
-				return newBranch, nil
-			}
+			ext.Path = ext.Path[:commonLen]
+			ext.Children[0] = newBranch
+			return ext, nil
 		}
-	}
 
-	// 2-1: input path have some part diff with common >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	if commonLen < len(path) {
-		// TODO: implements.
+		// 2-2: input path have some part diff with common >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+		if commonLen < len(path) {
+			newExt := &MPTNode{
+				NodeType: EXTENSION,
+				Dirty:    true,
+				Path:     ext.Path[:commonLen],
+			}
+
+			newBranch := &MPTNode{
+				NodeType: BRANCH,
+				Dirty:    true,
+			}
+			newExt.Children[0] = newBranch
+
+			// let origin ext concat to newBranch
+			originExtRemainPath := ext.Path[commonLen:]
+			originExtIndex := originExtRemainPath[0]
+			ext.Path = originExtRemainPath[1:]
+			newBranch.Children[originExtIndex] = ext
+
+			// create new Leaf for input
+			inputRemainPath := path[commonLen:]
+			inputIndex := inputRemainPath[0]
+			newLeaf := &MPTNode{
+				NodeType: LEAF,
+				Path:     inputRemainPath[1:],
+				Value:    value,
+				Dirty:    true,
+			}
+			newBranch.Children[inputIndex] = newLeaf
+			return newExt, nil
+		}
 	}
 
 	return nil, errors.New("invalid insert MPT EXTENSION node conditions")

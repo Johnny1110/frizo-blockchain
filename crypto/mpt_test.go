@@ -122,10 +122,10 @@ func Test_MPT_Put_bothPathHaveRemaining(t *testing.T) {
 
 	fmt.Println("==============================================")
 	fmt.Println("root: ", mpt.root)
-	fmt.Println("child-branch: ", mpt.root.Child)
+	fmt.Println("child-branch: ", mpt.root.Children[0])
 
-	fmt.Println("first leaf: ", mpt.root.Child.Children[0])
-	fmt.Println("sec leaf: ", mpt.root.Child.Children[1])
+	fmt.Println("first leaf: ", mpt.root.Children[0].Children[0])
+	fmt.Println("sec leaf: ", mpt.root.Children[0].Children[1])
 }
 
 func Test_MPT_Put_OriginLeafHasRemaining(t *testing.T) {
@@ -142,9 +142,9 @@ func Test_MPT_Put_OriginLeafHasRemaining(t *testing.T) {
 
 	fmt.Println("==============================================")
 	fmt.Println("root: ", mpt.root)
-	fmt.Println("child-branch: ", mpt.root.Child)
+	fmt.Println("child-branch: ", mpt.root.Children[0])
 
-	fmt.Println("first leaf: ", mpt.root.Child.Children[0])
+	fmt.Println("first leaf: ", mpt.root.Children[0].Children[0])
 }
 
 func Test_MPT_Put_NewPathHasRemaining(t *testing.T) {
@@ -161,8 +161,8 @@ func Test_MPT_Put_NewPathHasRemaining(t *testing.T) {
 
 	fmt.Println("==============================================")
 	fmt.Println("root: ", mpt.root)
-	fmt.Println("child-branch: ", mpt.root.Child)
-	fmt.Println("first: ", mpt.root.Child.Children[0])
+	fmt.Println("child-branch: ", mpt.root.Children[0])
+	fmt.Println("first: ", mpt.root.Children[0].Children[0])
 }
 
 func mockAExtNode(t *testing.T) *ModifiedMerklePatriciaTree {
@@ -181,8 +181,8 @@ func Test_MPT_Put_insertIntoExt_FullMatch(t *testing.T) {
 	mpt := mockAExtNode(t)
 	fmt.Println("==============================================")
 	fmt.Println("root: ", mpt.root)
-	fmt.Println("child-branch: ", mpt.root.Child)
-	fmt.Println("first: ", mpt.root.Child.Children[0])
+	fmt.Println("child-branch: ", mpt.root.Children[0])
+	fmt.Println("first: ", mpt.root.Children[0].Children[0])
 	fmt.Println("==============================================")
 
 	key := []byte{0x01, 0x02, 0x03}
@@ -190,15 +190,15 @@ func Test_MPT_Put_insertIntoExt_FullMatch(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Println("root:", mpt.root)
-	fmt.Println("root.child:", mpt.root.Child)
+	fmt.Println("root.child:", mpt.root.Children[0])
 }
 
 func Test_MPT_Put_insertIntoExt_S_2_1(t *testing.T) {
 	mpt := mockAExtNode(t)
 	fmt.Println("==============================================")
 	fmt.Println("root: ", mpt.root)
-	fmt.Println("child-branch: ", mpt.root.Child)
-	fmt.Println("first: ", mpt.root.Child.Children[0])
+	fmt.Println("child-branch: ", mpt.root.Children[0])
+	fmt.Println("first: ", mpt.root.Children[0].Children[0])
 	fmt.Println("==============================================")
 
 	key := []byte{0x01, 0x02}
@@ -206,8 +206,31 @@ func Test_MPT_Put_insertIntoExt_S_2_1(t *testing.T) {
 	assert.Nil(t, err)
 
 	fmt.Println("root:", mpt.root)
-	fmt.Println("root.child:", mpt.root.Child)
-	fmt.Println("origin.ext:", mpt.root.Child.Children[0])
-	fmt.Println("origin.ext.ChildBranch:", mpt.root.Child.Children[0].Child)
-	fmt.Println("?:", mpt.root.Child.Children[0].Child.Children[0])
+	fmt.Println("root.child:", mpt.root.Children[0])
+	fmt.Println("origin.ext:", mpt.root.Children[0].Children[0])
+	fmt.Println("origin.ext.ChildBranch:", mpt.root.Children[0].Children[0].Children[0])
+	fmt.Println("?:", mpt.root.Children[0].Children[0].Children[0].Children[0])
+}
+
+func Test_MPT_Put_insertIntoExt_S_2_2(t *testing.T) {
+	mpt := mockAExtNode(t)
+	fmt.Println("==============================================")
+	fmt.Println("root: ", mpt.root)
+	fmt.Println("child-branch: ", mpt.root.Children[0])
+	fmt.Println("first: ", mpt.root.Children[0].Children[0])
+	fmt.Println("==============================================")
+
+	key := []byte{0x01, 0x02, 0xAB, 0xCD}
+	err := mpt.Put(key, []byte{0xAA, 0xBB, 0xCC})
+	assert.Nil(t, err)
+
+	fmt.Println("root:", mpt.root)
+	fmt.Println("root.childBranch:", mpt.root.Children[0])
+	fmt.Println("index-0:", mpt.root.Children[0].Children[0])
+	// idx 12 should be a leaf
+	fmt.Println("index-10:", mpt.root.Children[0].Children[10])
+
+	fmt.Println("check index-0: ----------------------")
+	fmt.Println("index-0(ext)-Child Branch:", mpt.root.Children[0].Children[0].Children[0])
+	fmt.Println("index-0(ext)-Child Branch.idx-0:", mpt.root.Children[0].Children[0].Children[0].Children[0])
 }

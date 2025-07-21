@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"errors"
-	"fmt"
 	"frizo-blockchain/common"
 )
 
@@ -314,8 +313,6 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []byte, value []byte) (*MPTNode, error) {
 	commonLen := commonPrefixLen(ext.Path, path)
 
-	fmt.Println("commonPrefixLen: ", commonLen)
-
 	if commonLen == len(ext.Path) && commonLen == len(path) {
 		// overwrite value to EXTENSION's child branch -> branch.value
 		ext.Children[0].Value = value
@@ -409,8 +406,55 @@ func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []by
 
 // insertIntoBranch Handle insert into BRANCH node
 func (t *ModifiedMerklePatriciaTree) insertIntoBranch(branch *MPTNode, path []byte, value []byte) (*MPTNode, error) {
-	// TODO
-	return nil, nil
+	// ---------------------------------------------------------------------------
+	// S-1: path is empty -> update directly
+	// ---------------------------------------------------------------------------
+	if len(path) == 0 {
+		branch.Value = value
+		return branch, nil
+	}
+
+	// ---------------------------------------------------------------------------
+	// S-2: path is not empty
+	// ---------------------------------------------------------------------------
+	branchIdx := path[0]
+	remainingPath := path[1:]
+
+	// S-2-1: branch.Children[idx] is nil: create a new Leaf >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	if branch.Children[branchIdx] == nil {
+		branch.Children[branchIdx] = &MPTNode{
+			NodeType: LEAF,
+			Path:     remainingPath,
+			Value:    value,
+			Dirty:    true,
+		}
+		return branch, nil
+	}
+
+	// S-2-2: branch.Children[idx] is not nil: recursive insert >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	if branch.Children[branchIdx] != nil {
+		newChild, err := t.insert(branch.Children[branchIdx], remainingPath, value)
+		if err != nil {
+			return nil, err
+		}
+		branch.Children[branchIdx] = newChild
+		return branch, nil
+	}
+
+	return nil, errors.New("invalid insert MPT BRANCH node conditions")
+}
+
+func (n *MPTNode) getExtensionChild() *MPTNode {
+	if n.NodeType == EXTENSION {
+		return n.Children[0]
+	}
+	return nil
+}
+
+func (n *MPTNode) setExtensionChild(child *MPTNode) {
+	if n.NodeType == EXTENSION {
+		n.Children[0] = child
+	}
 }
 
 // ========== Tool func ==========

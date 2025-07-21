@@ -234,3 +234,60 @@ func Test_MPT_Put_insertIntoExt_S_2_2(t *testing.T) {
 	fmt.Println("index-0(ext)-Child Branch:", mpt.root.Children[0].Children[0].Children[0])
 	fmt.Println("index-0(ext)-Child Branch.idx-0:", mpt.root.Children[0].Children[0].Children[0].Children[0])
 }
+
+func Test_MPT_Debug_Mode(t *testing.T) {
+	mpt := NewMPT()
+
+	mpt.Put([]byte("test"), []byte("value1"))
+	fmt.Println("PUT: ", []byte("test"))
+
+	mpt.Put([]byte("team"), []byte("value2"))
+	fmt.Println("PUT: ", []byte("team"))
+
+	mpt.Put([]byte("testing"), []byte("value3"))
+	fmt.Println("PUT: ", []byte("testing"))
+
+	mpt.Put([]byte("apple"), []byte("fruit"))
+	fmt.Println("PUT: ", []byte("apple"))
+
+	mpt.Put([]byte("app"), []byte("application"))
+	fmt.Println("PUT: ", []byte("app"))
+
+	// 打印樹結構
+	mpt.PrintTree()
+
+	// 打印統計信息
+	mpt.PrintStats()
+
+	// 打印所有鍵值對
+	mpt.PrintAllKeys()
+}
+
+func Test_MPT_Debug_Mode_2(t *testing.T) {
+	mpt := NewMPT()
+
+	mpt.Put([]byte{0x01, 0x02, 0x11}, []byte("value1"))
+	mpt.Put([]byte{0x01, 0x02, 0x12}, []byte("value2"))
+	mpt.Put([]byte{0x01, 0x02, 0x13}, []byte("value3"))
+	mpt.Put([]byte{0x01, 0x02, 0x14}, []byte("value4"))
+
+	mpt.Put([]byte{0x01, 0x02}, []byte("value5"))
+
+	mpt.Put([]byte{0x01, 0x02, 0x11, 0xDD}, []byte("valueK"))
+
+	mpt.Put([]byte{0x01, 0x02, 0x15}, []byte("valueB"))
+	mpt.Put([]byte{0x01, 0x02, 0x11, 0xAA}, []byte("valueAA"))
+	mpt.Put([]byte{0x01, 0x02, 0x11, 0xAB}, []byte("valueAB"))
+	mpt.Put([]byte{0x01, 0x02, 0x11, 0xAC}, []byte("valueAC"))
+
+	mpt.Put([]byte{0x01}, []byte("Value 01"))
+
+	// 打印樹結構
+	mpt.PrintTree()
+
+	// 打印統計信息
+	mpt.PrintStats()
+
+	// 打印所有鍵值對
+	mpt.PrintAllKeys()
+}

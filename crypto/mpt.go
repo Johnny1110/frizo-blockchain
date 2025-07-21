@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"errors"
+	"fmt"
 	"frizo-blockchain/common"
 )
 
@@ -195,6 +196,7 @@ func (t *ModifiedMerklePatriciaTree) insert(node *MPTNode, path []byte, value []
 
 // insertIntoLeaf Handle insert into LEAF node
 func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, value []byte) (*MPTNode, error) {
+	fmt.Println("inserting leaf, leaf-path:", leaf.Path, "| input path: ", path)
 	// calculate common prefix length
 	commonPathLen := commonPrefixLen(leaf.Path, path)
 
@@ -220,16 +222,24 @@ func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, 
 
 		// make 2 path to leaf and add into new branch.
 		// leaf-1:
-		originIdx := leaf.Path[0]
-		leaf.Path = leaf.Path[1:]
-		newBranch.Children[originIdx] = leaf
+		if len(leaf.Path) == 0 {
+			newBranch.Value = value
+		} else {
+			originIdx := leaf.Path[0]
+			leaf.Path = leaf.Path[1:]
+			newBranch.Children[originIdx] = leaf
+		}
 		// leaf-2:
-		newIndex := path[0]
-		newBranch.Children[newIndex] = &MPTNode{
-			NodeType: LEAF,
-			Path:     path[1:],
-			Value:    value,
-			Dirty:    true,
+		if len(path) == 0 {
+			newBranch.Value = value
+		} else {
+			newIndex := path[0]
+			newBranch.Children[newIndex] = &MPTNode{
+				NodeType: LEAF,
+				Path:     path[1:],
+				Value:    value,
+				Dirty:    true,
+			}
 		}
 		return newBranch, nil
 	}

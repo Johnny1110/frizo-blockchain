@@ -285,9 +285,5 @@ func Test_MPT_Debug_Mode_2(t *testing.T) {
 	// 打印樹結構
 	mpt.PrintTree()
 
-	// 打印統計信息
-	mpt.PrintStats()
-
-	// 打印所有鍵值對
-	mpt.PrintAllKeys()
+	fmt.Println(mpt.root.Children[0].Children[0].Children[0].Children[1])
 }

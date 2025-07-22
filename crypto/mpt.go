@@ -325,8 +325,11 @@ func (t *ModifiedMerklePatriciaTree) insertIntoExtension(ext *MPTNode, path []by
 
 	if commonLen == len(ext.Path) && commonLen == len(path) {
 		// overwrite value to EXTENSION's child branch -> branch.value
-		ext.Children[0].Value = value
-		ext.Children[0].Dirty = true
+		newChild, err := t.insert(ext.Children[0], []byte{}, value)
+		if err != nil {
+			return nil, err
+		}
+		ext.Children[0] = newChild
 		return ext, nil
 	}
 

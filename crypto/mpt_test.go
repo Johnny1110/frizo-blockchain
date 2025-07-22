@@ -1,6 +1,8 @@
 package crypto
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -284,6 +286,132 @@ func Test_MPT_Debug_Mode_2(t *testing.T) {
 
 	// 打印樹結構
 	mpt.PrintTree()
+	mpt.PrintAllKeys()
 
 	fmt.Println(mpt.root.Children[0].Children[0].Children[0].Children[1])
+}
+
+// 工具函數：hex string -> []byte
+func mustHex(s string) []byte {
+	bz, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return bz
+}
+
+// 工具函數：打平 MPT 結構方便比較（只看 type/path/value，不看 hash/db）
+func printMPT(node *MPTNode, indent string) {
+	if node == nil {
+		fmt.Println(indent + "nil")
+		return
+	}
+	fmt.Printf("%s[%s] Path: %x, Value: %x\n", indent, node.NodeType.String(), node.Path, node.Value)
+	switch node.NodeType {
+	case EXTENSION:
+		printMPT(node.Children[0], indent+"  ")
+	case BRANCH:
+		for i, child := range node.Children {
+			if child != nil {
+				fmt.Printf("%s  Child[%x]:\n", indent, i)
+				printMPT(child, indent+"    ")
+			}
+		}
+	}
+}
+
+// 測試：單一 key 插入（建立 Leaf 節點）
+func TestPut_SingleKey(t *testing.T) {
+	tree := NewMPT()
+
+	err := tree.Put([]byte("dog"), []byte("woof"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	root := tree.root
+	if root.NodeType != LEAF {
+		t.Errorf("expected LEAF node, got %s", root.NodeType)
+	}
+	if !bytes.Equal(root.Value, []byte("woof")) {
+		t.Errorf("expected value 'woof', got %s", root.Value)
+	}
+}
+
+// 測試：插入兩筆相同 prefix 的 key，觸發 Leaf → Extension + Branch 拆解
+func TestPut_TwoKeysWithSharedPrefix(t *testing.T) {
+	tree := NewMPT()
+
+	_ = tree.Put([]byte("dog"), []byte("woof"))
+	_ = tree.Put([]byte("door"), []byte("open"))
+
+	root := tree.root
+	printMPT(root, "")
+
+	if root.NodeType != EXTENSION {
+		t.Fatalf("expected EXTENSION node at root, got %s", root.NodeType)
+	}
+
+	branch := root.getExtensionChild()
+	if branch == nil || branch.NodeType != BRANCH {
+		t.Fatalf("expected BRANCH as child of EXTENSION")
+	}
+
+	// check leaf under different branch slots
+	foundDog, foundDoor := false, false
+	for i, child := range branch.Children {
+		if child == nil {
+			continue
+		}
+		if child.NodeType == LEAF {
+			if bytes.Equal(child.Value, []byte("woof")) {
+				foundDog = true
+			}
+			if bytes.Equal(child.Value, []byte("open")) {
+				foundDoor = true
+			}
+		}
+		if i > 15 {
+			t.Errorf("invalid child index: %d", i)
+		}
+	}
+
+	if !foundDog || !foundDoor {
+		t.Errorf("expected both 'dog' and 'door' to be in trie")
+	}
+}
+
+// 測試：key 為 prefix（如 "do" -> "dog"），覆蓋 Branch.Value
+func TestPut_KeyIsPrefixOfExisting(t *testing.T) {
+	tree := NewMPT()
+
+	_ = tree.Put([]byte("dog"), []byte("woof"))
+	_ = tree.Put([]byte("do"), []byte("helper"))
+
+	root := tree.root
+	printMPT(root, "")
+
+	if root.NodeType != EXTENSION {
+		t.Errorf("expected EXTENSION node at root, got %s", root.NodeType)
+	}
+	branch := root.getExtensionChild()
+	if branch.Value == nil || !bytes.Equal(branch.Value, []byte("helper")) {
+		t.Errorf("branch node should have value 'helper', got %x", branch.Value)
+	}
+}
+
+// 測試：完全覆寫相同 key
+func TestPut_OverwriteSameKey(t *testing.T) {
+	tree := NewMPT()
+
+	_ = tree.Put([]byte("dog"), []byte("woof"))
+	_ = tree.Put([]byte("dog"), []byte("bark"))
+
+	root := tree.root
+	if root.NodeType != LEAF {
+		t.Fatalf("expected LEAF node, got %s", root.NodeType)
+	}
+	if !bytes.Equal(root.Value, []byte("bark")) {
+		t.Errorf("value not updated correctly, got %s", root.Value)
+	}
 }

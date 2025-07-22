@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"fmt"
+	"frizo-blockchain/common"
 	"sort"
 )
 
@@ -319,4 +320,46 @@ func (t *ModifiedMerklePatriciaTree) collectAllPairs(node *MPTNode, currentPath 
 	}
 
 	return pairs
+}
+
+// Size returns the number of key-value pairs in the MPT
+func (t *ModifiedMerklePatriciaTree) Size() int {
+	return t.countValues(t.root)
+}
+
+// countValues recursively counts the number of values in the tree
+func (t *ModifiedMerklePatriciaTree) countValues(node *MPTNode) int {
+	if node == nil {
+		return 0
+	}
+
+	count := 0
+
+	switch node.NodeType {
+	case LEAF:
+		return 1
+
+	case EXTENSION:
+		return t.countValues(node.Children[0])
+
+	case BRANCH:
+		if node.Value != nil {
+			count = 1
+		}
+		for _, child := range node.Children {
+			if child != nil {
+				count += t.countValues(child)
+			}
+		}
+		return count
+
+	default:
+		return 0
+	}
+}
+
+// Clear removes all key-value pairs from the MPT
+func (t *ModifiedMerklePatriciaTree) Clear() {
+	t.root = nil
+	t.db = make(map[common.Hash][]byte)
 }

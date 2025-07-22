@@ -207,6 +207,28 @@ if len(path) == 0 {
 
 ## Code
 
+<br>
+
+Delete 情境：
+
+```
+1. BRANCH 節點：
+   - 如果只剩 1 個子節點 + 無 value → 轉為 EXTENSION
+   - 如果只剩 1 個子節點 + 有 value → 保持 BRANCH
+   - 如果只剩 0 個子節點 + 有 value → 轉為 LEAF
+   - 如果只剩 0 個子節點 + 無 value → 刪除節點（返回 nil）
+
+2. EXTENSION 節點：
+   - 如果子節點是 EXTENSION → 合併路徑
+   - 如果子節點是 LEAF → 合併成新 LEAF
+   - 如果子節點被刪除 → 刪除此 EXTENSION
+
+3. LEAF 節點：
+   - 如果 key 匹配 → 刪除（返回 nil）
+   - 如果 key 不匹配 → 保持不變
+```
+
+<br>
 
 ```go
 package crypto

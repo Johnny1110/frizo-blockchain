@@ -1,8 +1,8 @@
 package crypto
 
 import (
+	"bytes"
 	"errors"
-	"fmt"
 	"frizo-blockchain/common"
 )
 
@@ -69,7 +69,7 @@ func NewMPT() *ModifiedMerklePatriciaTree {
 	}
 }
 
-// ========== Encoding func ==========
+// ========== Encoding func =============================================================================
 
 // HexToCompact convert hex path to Compact(緊湊編碼) for saving space
 // encoding rule:
@@ -148,7 +148,22 @@ func KeyToHex(key []byte) []byte {
 	return hexPath
 }
 
-// ========== MPT Core Access Func ==========
+// ========== MPT Core Access Func ==================================================================
+
+func (t *ModifiedMerklePatriciaTree) Get(key []byte) ([]byte, error) {
+	if len(key) == 0 {
+		return nil, errors.New("key can not be empty")
+	}
+
+	// convert key to key
+	hexPath := KeyToHex(key)
+	return t.get(t.root, hexPath)
+}
+
+func (t *ModifiedMerklePatriciaTree) Contains(key []byte) bool {
+	value, _ := t.Get(key)
+	return value != nil
+}
 
 func (t *ModifiedMerklePatriciaTree) Put(key, value []byte) error {
 	if len(key) == 0 {
@@ -165,6 +180,27 @@ func (t *ModifiedMerklePatriciaTree) Put(key, value []byte) error {
 	t.root = newRoot
 	return nil
 }
+
+// Delete removes a key-value pair from the MPT
+func (t *ModifiedMerklePatriciaTree) Delete(key []byte) error {
+	if len(key) == 0 {
+		return errors.New("key cannot be empty")
+	}
+
+	// Convert key to hex path
+	hexPath := KeyToHex(key)
+
+	// Delete from root
+	newRoot, err := t.delete(t.root, hexPath)
+	if err != nil {
+		return err
+	}
+
+	t.root = newRoot
+	return nil
+}
+
+// ==================================================================================================================================
 
 // insert recursive insert node
 // MPT core algorithm, handle all kind of NodeType.
@@ -196,7 +232,6 @@ func (t *ModifiedMerklePatriciaTree) insert(node *MPTNode, path []byte, value []
 
 // insertIntoLeaf Handle insert into LEAF node
 func (t *ModifiedMerklePatriciaTree) insertIntoLeaf(leaf *MPTNode, path []byte, value []byte) (*MPTNode, error) {
-	fmt.Println("inserting leaf, leaf-path:", leaf.Path, "| input path: ", path)
 	// calculate common prefix length
 	commonPathLen := commonPrefixLen(leaf.Path, path)
 
@@ -455,6 +490,249 @@ func (t *ModifiedMerklePatriciaTree) insertIntoBranch(branch *MPTNode, path []by
 	}
 
 	return nil, errors.New("invalid insert MPT BRANCH node conditions")
+}
+
+func (t *ModifiedMerklePatriciaTree) get(node *MPTNode, path []byte) ([]byte, error) {
+	if node == nil {
+		return nil, nil // key not found
+	}
+
+	switch node.NodeType {
+	case LEAF:
+		return t.getFromLeaf(node, path)
+	case EXTENSION:
+		return t.getFromExtension(node, path)
+	case BRANCH:
+		return t.getFromBranch(node, path)
+	default:
+		return nil, errors.New("invalid MPT node type")
+	}
+}
+
+func (t *ModifiedMerklePatriciaTree) getFromLeaf(leaf *MPTNode, path []byte) ([]byte, error) {
+	if bytes.Equal(leaf.Path, path) {
+		return leaf.Value, nil
+	}
+	return nil, nil
+}
+
+func (t *ModifiedMerklePatriciaTree) getFromExtension(ext *MPTNode, path []byte) ([]byte, error) {
+	if len(path) < len(ext.Path) {
+		return nil, nil
+	}
+
+	// ext path not match input path prefix
+	if !bytes.Equal(path[:len(ext.Path)], ext.Path) {
+		return nil, nil // prefix doesn't match, key not found
+	}
+
+	remainPath := path[len(ext.Path):]
+	return t.get(ext.Children[0], remainPath)
+}
+
+func (t *ModifiedMerklePatriciaTree) getFromBranch(branch *MPTNode, path []byte) ([]byte, error) {
+	// If path is empty, return the branch's value (if any)
+	if len(path) == 0 {
+		return branch.Value, nil
+	}
+
+	// Get the branch index from the first byte of path
+	branchIndex := path[0]
+	remainingPath := path[1:]
+
+	// Check if the child at this index exists
+	if branch.Children[branchIndex] == nil {
+		return nil, nil // key not found
+	}
+
+	// Recursively search in the selected child
+	return t.get(branch.Children[branchIndex], remainingPath)
+}
+
+func (t *ModifiedMerklePatriciaTree) delete(node *MPTNode, path []byte) (*MPTNode, error) {
+	if node == nil {
+		return nil, nil // key not found, nothing to delete
+	}
+
+	node.Dirty = true
+
+	switch node.NodeType {
+	case LEAF:
+		return t.deleteFromLeaf(node, path)
+	case EXTENSION:
+		return t.deleteFromExtension(node, path)
+	case BRANCH:
+		return t.deleteFromBranch(node, path)
+	default:
+		return nil, errors.New("invalid MPT node type")
+	}
+}
+
+func (t *ModifiedMerklePatriciaTree) deleteFromLeaf(leaf *MPTNode, path []byte) (*MPTNode, error) {
+	if bytes.Equal(leaf.Path, path) {
+		return nil, nil // Delete the leaf by returning nil
+	}
+
+	// Path doesn't match, key not found
+	return leaf, nil
+}
+
+func (t *ModifiedMerklePatriciaTree) deleteFromExtension(ext *MPTNode, path []byte) (*MPTNode, error) {
+	if len(path) < len(ext.Path) {
+		return ext, nil // input path shorter than ext path, return ext as key not found
+	}
+
+	if !bytes.Equal(path[:len(ext.Path)], ext.Path) {
+		return ext, nil // Prefix doesn't match, key not found
+	}
+
+	remainingPath := path[len(ext.Path):]
+	newChild, err := t.delete(ext.Children[0], remainingPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if newChild == nil {
+		return nil, nil // Child Branch was deleted, so delete this ext also.
+	}
+
+	ext.Children[0] = newChild // replace child with newChild
+	return t.mergeExtensionIfNeeded(ext)
+}
+
+func (t *ModifiedMerklePatriciaTree) deleteFromBranch(branch *MPTNode, path []byte) (*MPTNode, error) {
+	if len(path) == 0 {
+		// Delete the value at this branch
+		branch.Value = nil
+		return t.normalizeBranch(branch)
+	}
+
+	// Get the branch index
+	branchIndex := path[0]
+	remainingPath := path[1:]
+
+	// Check if child exists
+	if branch.Children[branchIndex] == nil {
+		return branch, nil // Key not found
+	}
+
+	// Recursively delete from child
+	newChild, err := t.delete(branch.Children[branchIndex], remainingPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the child
+	branch.Children[branchIndex] = newChild
+
+	// Normalize the branch (it might need to be converted)
+	return t.normalizeBranch(branch)
+}
+
+// mergeExtensionIfNeeded checks if an extension needs to be merged with its child
+func (t *ModifiedMerklePatriciaTree) mergeExtensionIfNeeded(ext *MPTNode) (*MPTNode, error) {
+	// if child node is ext -> merge path as 1 ext
+	// if child is leaf, merge a new leaf
+	child := ext.getExtensionChild()
+	switch child.NodeType {
+	case LEAF:
+		// Merge extension and leaf into a single leaf
+		newPath := append(ext.Path, child.Path...)
+		return &MPTNode{
+			NodeType: LEAF,
+			Path:     newPath,
+			Value:    child.Value,
+			Dirty:    true,
+		}, nil
+	case EXTENSION:
+		// Merge two extensions into one
+		newPath := append(ext.Path, child.Path...)
+		return &MPTNode{
+			NodeType: EXTENSION,
+			Path:     newPath,
+			Children: [16]*MPTNode{child.Children[0]},
+			Dirty:    true,
+		}, nil
+	case BRANCH:
+		// Branch can not be merged.
+		return ext, nil
+	default:
+		return nil, errors.New("invalid MPT node type")
+	}
+}
+
+// normalizeBranch handles branch node transformation after deletion
+func (t *ModifiedMerklePatriciaTree) normalizeBranch(branch *MPTNode) (*MPTNode, error) {
+	// Count non-nil children
+	var nonNilChildrenIdx []int
+	for i, child := range branch.Children {
+		if child != nil {
+			nonNilChildrenIdx = append(nonNilChildrenIdx, i)
+		}
+	}
+
+	switch len(nonNilChildrenIdx) {
+	case 0: // No children left
+		if branch.Value != nil {
+			// Convert to leaf with empty path
+			return &MPTNode{
+				NodeType: LEAF,
+				Path:     []byte{},
+				Value:    branch.Value,
+				Dirty:    true,
+			}, nil
+		} else {
+			// No children and no value, delete the branch
+			return nil, nil
+		}
+	case 1: // Only one child left
+		childIndex := nonNilChildrenIdx[0]
+		child := branch.Children[childIndex]
+		if branch.Value == nil {
+			// No value at branch, can merge with child
+			newNode, err := t.mergeBranchWithSingleChild(branch, childIndex, child)
+			return newNode, err
+		} else {
+			// Has value, must keep as branch
+			return branch, nil
+		}
+	default:
+		// Multiple children, keep as branch
+		return branch, nil
+	}
+
+}
+
+// mergeBranchWithSingleChild merges a branch with its single child
+func (t *ModifiedMerklePatriciaTree) mergeBranchWithSingleChild(branch *MPTNode, childIndex int, child *MPTNode) (*MPTNode, error) {
+	switch child.NodeType {
+	case LEAF:
+		// merge into a single leaf
+		return &MPTNode{
+			NodeType: LEAF,
+			Path:     append([]byte{byte(childIndex)}, child.Path...),
+			Value:    child.Value,
+			Dirty:    true,
+		}, nil
+	case EXTENSION:
+		// Merge into a single extension
+		return &MPTNode{
+			NodeType: EXTENSION,
+			Path:     append([]byte{byte(childIndex)}, child.Path...),
+			Children: [16]*MPTNode{child.Children[0]}, // Copy the child's child
+			Dirty:    true,
+		}, nil
+	case BRANCH:
+		// Create an extension pointing to the branch
+		return &MPTNode{
+			NodeType: EXTENSION,
+			Path:     []byte{byte(childIndex)},
+			Children: [16]*MPTNode{child},
+			Dirty:    true,
+		}, nil
+	default:
+		return nil, errors.New("invalid MPT node type")
+	}
 }
 
 func (n *MPTNode) getExtensionChild() *MPTNode {

@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"frizo-blockchain/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -41,6 +42,13 @@ const (
 	// BRANCH
 	// format: [16 sub-node-hash, value(optional)]
 	BRANCH
+)
+
+// Node type in bytes length
+const (
+	// using decode bytes length to refer node type.
+	branchListLength = 17 // BRANCH node have 17 elements（16 sub node + 1 value
+	leafAndExtLength = 2  // LEAF and EXT have 2 elements
 )
 
 // MPTNode support 4 MPTNodeType
@@ -911,7 +919,141 @@ func (t *ModifiedMerklePatriciaTree) updateHashes(node *MPTNode) {
 
 	// calculate current node
 	t.Hash(node)
+}
 
+// decodeNode decoding bytes with RLP, return a MPT node
+func (t *ModifiedMerklePatriciaTree) decodeNode(data []byte) (*MPTNode, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	var decoded []interface{}
+	if err := rlp.DecodeBytes(data, &decoded); err != nil {
+		return nil, fmt.Errorf("failed to using RLP to decode node: %v", err)
+	}
+
+	switch len(decoded) {
+	case leafAndExtLength:
+		// Leaf Node: path + value
+		// Ext Node: path + sub_ref
+		return t.decodeLeafOrExtension(decoded)
+	case branchListLength:
+		// Branch Node: [all subNodes ref, node.value]
+		return t.decodeBranch(decoded)
+	default:
+		return nil, fmt.Errorf("invalid node format: wrong element count %d", len(decoded))
+	}
+}
+
+// decodeLeafOrExtension RLP decode leaf or ext node
+func (t *ModifiedMerklePatriciaTree) decodeLeafOrExtension(decoded []interface{}) (*MPTNode, error) {
+	if len(decoded) != leafAndExtLength {
+		return nil, fmt.Errorf("invalid branch node: expected %d elements, got %d",
+			leafAndExtLength, len(decoded))
+	}
+
+	// first element is compact path
+	pathData, ok := decoded[0].([]byte)
+	if !ok {
+		return nil, errors.New("invalid path data in leaf/extension node")
+	}
+
+	hexPath, isLeaf := CompactToHex(pathData)
+
+	if isLeaf {
+		// second element is value
+		value, ok := decoded[1].([]byte)
+		if !ok {
+			return nil, errors.New("invalid value in leaf node")
+		}
+
+		return &MPTNode{
+			NodeType: LEAF,
+			Path:     hexPath,
+			Value:    value,
+			Dirty:    false,
+		}, nil
+	} else { // EXTENSION node
+		return &MPTNode{
+			NodeType: EXTENSION,
+			Path:     hexPath,
+			Dirty:    false,
+			// children[0] using loadChild to load data later
+		}, nil
+	}
+}
+
+// decodeBranch RLP decode branch node
+func (t *ModifiedMerklePatriciaTree) decodeBranch(decoded []interface{}) (*MPTNode, error) {
+	if len(decoded) != branchListLength {
+		return nil, fmt.Errorf("invalid branch node: expected %d elements, got %d",
+			branchListLength, len(decoded))
+	}
+
+	branch := &MPTNode{
+		NodeType: BRANCH,
+		Dirty:    false,
+	}
+
+	// no.17 element is branch.value（nullable）
+	if value, ok := decoded[16].([]byte); ok && len(value) > 0 {
+		branch.Value = value
+	}
+
+	// no.1 ~ no.16 is all children, will be restored by loadChild() later
+
+	return branch, nil
+}
+
+// loadNode load node from db
+func (t *ModifiedMerklePatriciaTree) loadNode(hash common.Hash) (*MPTNode, error) {
+	if hash == (common.Hash{}) {
+		return nil, nil
+	}
+
+	// load data form db
+	data, exists := t.db[hash]
+	if !exists {
+		return nil, fmt.Errorf("node not found: %s", hash.Hex())
+	}
+
+	// decode node
+	node, err := t.decodeNode(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// set hash to node (load data is not dirty)
+	node.Hash = &hash
+
+	return node, nil
+}
+
+// resolveNode resolve node ref
+func (t *ModifiedMerklePatriciaTree) resolveNode(ref interface{}) (*MPTNode, error) {
+	if ref == nil {
+		return nil, nil
+	}
+
+	switch r := ref.(type) {
+	case []byte:
+		if len(r) == 0 {
+			return nil, nil
+		}
+
+		// HASH
+		if len(r) == common.HashLength {
+			// Hash ref, load from db
+			hash := common.BytesToHash(r)
+			return t.loadNode(hash)
+		} else {
+			// node decode directly
+			return t.decodeNode(r)
+		}
+
+	default:
+		return nil, fmt.Errorf("invalid node reference type: %T", ref)
+	}
 }
 
 func (n *MPTNode) getExtensionChild() *MPTNode {

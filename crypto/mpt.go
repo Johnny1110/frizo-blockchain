@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"frizo-blockchain/common"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -171,7 +172,11 @@ func (t *ModifiedMerklePatriciaTree) Get(key []byte) ([]byte, error) {
 }
 
 func (t *ModifiedMerklePatriciaTree) Contains(key []byte) bool {
-	value, _ := t.Get(key)
+	value, err := t.Get(key)
+	if err != nil {
+		log.Error("[MPT] Contains failed", err)
+		return false
+	}
 	return value != nil
 }
 
@@ -812,20 +817,30 @@ func (t *ModifiedMerklePatriciaTree) encodeNode(node *MPTNode) []byte {
 func (t *ModifiedMerklePatriciaTree) encodeLeaf(node *MPTNode) []byte {
 	compactPath := HexToCompact(node.Path, true)
 	// RLP encoding
-	encoded, _ := rlp.EncodeToBytes([]interface{}{
+	encoded, err := rlp.EncodeToBytes([]interface{}{
 		compactPath,
 		node.Value,
 	})
+
+	if err != nil {
+		panic(err)
+	}
+
 	return encoded
 }
 
 func (t *ModifiedMerklePatriciaTree) encodeExtension(node *MPTNode) []byte {
 	compactPath := HexToCompact(node.Path, false)
 	childRef := t.nodeRef(node.Children[0])
-	encoded, _ := rlp.EncodeToBytes([]interface{}{
+	encoded, err := rlp.EncodeToBytes([]interface{}{
 		compactPath,
 		childRef,
 	})
+
+	if err != nil {
+		panic(err)
+	}
+
 	return encoded
 }
 
@@ -845,7 +860,12 @@ func (t *ModifiedMerklePatriciaTree) encodeBranch(node *MPTNode) []byte {
 	// add node.Value
 	refs = append(refs, node.Value)
 
-	encoded, _ := rlp.EncodeToBytes(refs)
+	encoded, err := rlp.EncodeToBytes(refs)
+
+	if err != nil {
+		panic(err)
+	}
+
 	return encoded
 }
 

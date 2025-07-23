@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"frizo-blockchain/common"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // Modified Merkle Patricia Tree (MPT)
@@ -49,8 +50,8 @@ type MPTNode struct {
 	Path     []byte
 	Value    []byte
 	Children [16]*MPTNode // only BRANCH node have 16 Children, EXTENSION node have 1 child
-	Hash     *common.Hash
-	Dirty    bool // remark is modified, optimized hash data
+	Hash     *common.Hash // cached hash
+	Dirty    bool         // remark is modified, optimized hash data
 }
 
 // ModifiedMerklePatriciaTree MPT main struct
@@ -150,6 +151,15 @@ func KeyToHex(key []byte) []byte {
 
 // ========== MPT Core Access Func ==================================================================
 
+func (t *ModifiedMerklePatriciaTree) GetRoot() common.Hash {
+	if t.root == nil {
+		return common.Hash{}
+	}
+	// recursive calculate all dirty node HASH
+	t.updateHashes(t.root)
+	return *t.root.Hash
+}
+
 func (t *ModifiedMerklePatriciaTree) Get(key []byte) ([]byte, error) {
 	if len(key) == 0 {
 		return nil, errors.New("key can not be empty")
@@ -200,7 +210,55 @@ func (t *ModifiedMerklePatriciaTree) Delete(key []byte) error {
 	return nil
 }
 
+// Hash calculate Node HASH（with cache）
+func (t *ModifiedMerklePatriciaTree) Hash(node *MPTNode) common.Hash {
+	if node == nil {
+		return common.Hash{}
+	}
+
+	// not dirty and have hash, just return cached HASH
+	if !node.Dirty && node.Hash != nil {
+		return *node.Hash
+	} else { // calculate HASH
+		// RLP encoding
+		encoded := t.encodeNode(node)
+		hash := t.hashFunc(encoded)
+
+		node.Hash = &hash
+		node.Dirty = false
+
+		// encoded grater than 32 need to be store in levelDB (Ethereum std rule)
+		if len(encoded) > 32 {
+			t.db[hash] = encoded
+		}
+
+		return hash
+	}
+}
+
+func (t *ModifiedMerklePatriciaTree) Commit() (common.Hash, error) {
+	if t.root == nil {
+		return common.Hash{}, nil
+	}
+
+	// calculate HASH
+	rootHash := t.GetRoot()
+
+	// store into levelDB
+	// TODO: impl
+
+	return rootHash, nil
+}
+
 // ==================================================================================================================================
+
+// markDirty after update node, propagate dirty mark from node to root.
+func (t *ModifiedMerklePatriciaTree) markDirty(node *MPTNode) {
+	if node == nil {
+		return
+	}
+	node.Dirty = true
+}
 
 // insert recursive insert node
 // MPT core algorithm, handle all kind of NodeType.
@@ -733,6 +791,104 @@ func (t *ModifiedMerklePatriciaTree) mergeBranchWithSingleChild(branch *MPTNode,
 	default:
 		return nil, errors.New("invalid MPT node type")
 	}
+}
+
+// encodeNode RLP Encoding (go-ethereum impl)
+// doc: https://ethbook.abyteahead.com/ch4/rlp.html
+func (t *ModifiedMerklePatriciaTree) encodeNode(node *MPTNode) []byte {
+	switch node.NodeType {
+	case LEAF:
+		return t.encodeLeaf(node)
+	case EXTENSION:
+		return t.encodeExtension(node)
+	case BRANCH:
+		return t.encodeBranch(node)
+	default:
+		return nil
+	}
+}
+
+// encodeLeaf RLF encoding LEAF Node
+func (t *ModifiedMerklePatriciaTree) encodeLeaf(node *MPTNode) []byte {
+	compactPath := HexToCompact(node.Path, true)
+	// RLP encoding
+	encoded, _ := rlp.EncodeToBytes([]interface{}{
+		compactPath,
+		node.Value,
+	})
+	return encoded
+}
+
+func (t *ModifiedMerklePatriciaTree) encodeExtension(node *MPTNode) []byte {
+	compactPath := HexToCompact(node.Path, false)
+	childRef := t.nodeRef(node.Children[0])
+	encoded, _ := rlp.EncodeToBytes([]interface{}{
+		compactPath,
+		childRef,
+	})
+	return encoded
+}
+
+func (t *ModifiedMerklePatriciaTree) encodeBranch(node *MPTNode) []byte {
+	// Branch Node: [all subNodes ref, node.value]
+	var refs []interface{}
+
+	// add 16 sub node ref
+	for i := 0; i < 16; i++ {
+		if node.Children[i] != nil {
+			refs = append(refs, t.nodeRef(node.Children[i]))
+		} else {
+			refs = append(refs, []byte{})
+		}
+	}
+
+	// add node.Value
+	refs = append(refs, node.Value)
+
+	encoded, _ := rlp.EncodeToBytes(refs)
+	return encoded
+}
+
+func (t *ModifiedMerklePatriciaTree) nodeRef(node *MPTNode) []byte {
+	if node == nil {
+		return []byte{}
+	}
+
+	// encode node.
+	encoded := t.encodeNode(node)
+
+	// ethereum std rule: < 32 bytes just return node encode
+	if len(encoded) < 32 {
+		return encoded
+	}
+
+	// ethereum std rule: > 32 bytes return HASH
+	hash := t.Hash(node)
+	return hash.Bytes()
+}
+
+func (t *ModifiedMerklePatriciaTree) updateHashes(node *MPTNode) {
+	if node == nil {
+		return
+	}
+
+	// update all sub nodes (BRANCH and EXT)
+	switch node.NodeType {
+	case BRANCH:
+		for _, child := range node.Children {
+			if child != nil {
+				t.updateHashes(child)
+			}
+		}
+	case EXTENSION:
+		if node.Children[0] != nil {
+			t.updateHashes(node.Children[0])
+		}
+	}
+
+	// calculate current node
+	t.Hash(node)
+
 }
 
 func (n *MPTNode) getExtensionChild() *MPTNode {

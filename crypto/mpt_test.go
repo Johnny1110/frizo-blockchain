@@ -816,3 +816,30 @@ func Test_MPT_Clear(t *testing.T) {
 	value, _ := mpt.Get([]byte("key1"))
 	assert.Nil(t, value)
 }
+
+func TestHashCalculation(t *testing.T) {
+	mpt := NewMPT()
+
+	mpt.Put([]byte("cat"), []byte("animal"))
+	mpt.Put([]byte("car"), []byte("vehicle"))
+
+	// 第一次計算根哈希
+	root1 := mpt.GetRoot()
+
+	// 第二次計算（應該使用緩存）
+	root2 := mpt.GetRoot()
+
+	// 應該相等
+	assert.Equal(t, root1, root2)
+
+	fmt.Println("first hash root:", root1)
+
+	// 修改數據
+	mpt.Put([]byte("cat"), []byte("feline"))
+
+	// 根哈希應該改變
+	root3 := mpt.GetRoot()
+	assert.NotEqual(t, root1, root3)
+
+	fmt.Println("last hash root:", root3)
+}

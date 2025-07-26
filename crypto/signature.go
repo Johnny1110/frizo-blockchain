@@ -54,6 +54,10 @@ func (sign *Signature) Bytes() []byte {
 	return result
 }
 
+func (sign *Signature) Validate() bool {
+	return len(sign.Bytes()) == common.SignatureLen
+}
+
 // SignMessage calculates an ECDSA signature.
 // The produced signature is in the [R || S || V] format.
 func SignMessage(privateKey *ecdsa.PrivateKey, message []byte) (Signature, error) {

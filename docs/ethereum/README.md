@@ -11,3 +11,4 @@
 3. 什麼是 Patrica Tree [link](basic/patrica.md)
 4. Modified Merkle Patricia Tree (MPT) [link](basic/MPT.md)
 5. RLP 編碼 [link](basic/RLP.md)
+6. core - types 核心資料結構 [link](basic/core_types.md)

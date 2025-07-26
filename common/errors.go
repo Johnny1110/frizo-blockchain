@@ -51,6 +51,9 @@ var (
 
 	// ErrInvalidChainID is returned when the chain ID is invalid
 	ErrInvalidChainID = errors.New("invalid chain ID")
+
+	ErrIntrinsicGas = errors.New("intrinsic gas too low")
+	ErrGasLimit     = errors.New("exceeds block gas limit")
 )
 
 func ErrInvalidData(s string) error {

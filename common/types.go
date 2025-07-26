@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 )
 
@@ -153,4 +154,54 @@ func (h Hash) Format(s fmt.State, c rune) {
 	default:
 		fmt.Fprintf(s, "%"+string(c), h[:])
 	}
+}
+
+// GenesisAccount Genesis Account
+type GenesisAccount struct {
+	Address common.Address
+	Balance *big.Int
+	Code    []byte
+	Storage map[common.Hash]common.Hash
+	Nonce   uint64
+}
+
+// GenesisBlock GenesisBlock config
+type GenesisBlock struct {
+	Timestamp  uint64
+	ParentHash common.Hash
+	ExtraData  []byte
+	GasLimit   uint64
+
+	// Alloc pre set account
+	Alloc map[common.Address]GenesisAccount
+
+	// chain config
+	Config *ChainConfig
+}
+
+// ChainConfig Chain Config
+type ChainConfig struct {
+	ChainID *big.Int // Chain ID, for sign txn
+
+	ConsensusType string // "pos" or "poa"
+
+	// PoS setup
+	MinStake          *big.Int // min stake value (32 or 128)
+	ValidatorSetSize  uint64   // Validator Set Size
+	BlockPeriod       uint64   // block creation interval（secs）
+	EpochLength       uint64   // epoch length（block count）
+	FinalizationDelay uint64   // finalized confirmation delay
+
+	// Gas setup
+	InitialGasLimit uint64 // init gas limit
+}
+
+// State interface
+type State interface {
+	GetBalance(addr common.Address) *big.Int
+	GetNonce(addr common.Address) uint64
+	GetCode(addr common.Address) []byte
+	SetBalance(addr common.Address, amount *big.Int)
+	SetNonce(addr common.Address, nonce uint64)
+	SetCode(addr common.Address, code []byte)
 }

@@ -12,3 +12,11 @@
 * 交易（Transaction）：記錄價值轉移的基本單位
 * 區塊頭（Block Header）：包含區塊的 metadata，用於快速驗證和同步
 
+
+### 為什麼需要 Nonce？
+
+Nonce 是 "number used once" 的縮寫，每個賬戶都有一個遞增的 nonce 值：
+
+* 防止重放攻擊：同一筆簽名的交易不能被執行兩次
+* 確保順序執行：nonce=1 的交易必須在 nonce=2 之前執行
+* 賬戶狀態一致性：幫助維護賬戶的交易歷史

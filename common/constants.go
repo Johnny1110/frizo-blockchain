@@ -5,7 +5,8 @@ import "math/big"
 // Blockchain Constants
 const (
 	// Block
-	BlockGasLimit       = 8000000 // Block Gas Limit
+	BlockMaxGasLimit    = 8000000 // Block Gas Limit
+	BlockMinGasLimit    = 5000    // min gas fee for 1 block
 	MaxBlockSize        = 1048576 // Block max size (1MB)
 	BlockGenerationTime = 15      // Block Generate per（Sec）
 
@@ -26,6 +27,27 @@ const (
 	// Version info
 	ProtocolVersion = 1 // protocol version
 	DatabaseVersion = 1 // DB version
+
+	// BloomBits Bloom filter decimals
+	BloomBits = 2048
+
+	// BloomBytes Bloom filter bytes size
+	BloomBytes = BloomBits / 8
+
+	// MaxExtraDataSize max extra data size
+	MaxExtraDataSize = 32
+
+	// TxGas normal value transfer gas fee
+	TxGas = 21000
+
+	// TxGasContractCreation create contract gas fee
+	TxGasContractCreation = 53000
+
+	// TxDataZeroGas txn data every zero byte gas fee
+	TxDataZeroGas = 4
+
+	// TxDataNonZeroGas txn data every non-zero byte gas fee
+	TxDataNonZeroGas = 16
 )
 
 // Genesis

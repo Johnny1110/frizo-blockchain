@@ -142,14 +142,20 @@ func (tx *Transaction) SignTx(privateKey *ecdsa.PrivateKey) error {
 
 // signingHash return tx_hash (AccountNonce + Recipient + Amount + GasLimit + Payload)
 func (tx *Transaction) signingHash() common.Hash {
-	bytes, _ := crypto.RlpEncodeToBytes(fmt.Sprintf("%d,%s,%d,%d,%s,%x",
+
+	rawData := []interface{}{
 		tx.data.AccountNonce,
 		tx.data.Recipient,
 		tx.data.Amount,
 		tx.data.GasLimit,
 		tx.data.GasPrice,
 		tx.data.Payload,
-	))
+	}
+	bytes, err := crypto.RlpEncodeToBytes(rawData)
+	if err != nil {
+		log.Error("failed to rlp encode transaction", "err", err)
+		return common.Hash{}
+	}
 	return crypto.Keccak256Hash(bytes)
 }
 

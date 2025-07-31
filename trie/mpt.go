@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
-	"frizo-blockchain/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -828,7 +827,7 @@ func (t *ModifiedMerklePatriciaTree) encodeNode(node *MPTNode) []byte {
 func (t *ModifiedMerklePatriciaTree) encodeLeaf(node *MPTNode) []byte {
 	compactPath := HexToCompact(node.Path, true)
 	// RLP encoding
-	encoded, err := crypto.RlpEncodeToBytes([]interface{}{
+	encoded, err := common.RlpEncodeToBytes([]interface{}{
 		compactPath,
 		node.Value,
 	})
@@ -843,7 +842,7 @@ func (t *ModifiedMerklePatriciaTree) encodeLeaf(node *MPTNode) []byte {
 func (t *ModifiedMerklePatriciaTree) encodeExtension(node *MPTNode) []byte {
 	compactPath := HexToCompact(node.Path, false)
 	childRef := t.nodeRef(node.Children[0])
-	encoded, err := crypto.RlpEncodeToBytes([]interface{}{
+	encoded, err := common.RlpEncodeToBytes([]interface{}{
 		compactPath,
 		childRef,
 	})
@@ -871,7 +870,7 @@ func (t *ModifiedMerklePatriciaTree) encodeBranch(node *MPTNode) []byte {
 	// add node.Value
 	refs = append(refs, node.Value)
 
-	encoded, err := crypto.RlpEncodeToBytes(refs)
+	encoded, err := common.RlpEncodeToBytes(refs)
 
 	if err != nil {
 		panic(err)
@@ -928,7 +927,7 @@ func (t *ModifiedMerklePatriciaTree) decodeNode(data []byte) (*MPTNode, error) {
 	}
 
 	var decoded []interface{}
-	if err := crypto.RlpDecodeBytes(data, &decoded); err != nil {
+	if err := common.RlpDecodeBytes(data, &decoded); err != nil {
 		return nil, fmt.Errorf("failed to using RLP to decode node: %v", err)
 	}
 

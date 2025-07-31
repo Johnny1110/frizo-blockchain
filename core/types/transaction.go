@@ -109,7 +109,7 @@ func (tx *Transaction) Hash() common.Hash {
 		return hash.(common.Hash)
 	}
 
-	bytes, _ := crypto.RlpEncodeToBytes(tx.data.AccountNonce)
+	bytes, _ := common.RlpEncodeToBytes(tx.data.AccountNonce)
 	h := crypto.Keccak256Hash(bytes)
 
 	// cache
@@ -151,7 +151,7 @@ func (tx *Transaction) signingHash() common.Hash {
 		tx.data.GasPrice,
 		tx.data.Payload,
 	}
-	bytes, err := crypto.RlpEncodeToBytes(rawData)
+	bytes, err := common.RlpEncodeToBytes(rawData)
 	if err != nil {
 		log.Error("failed to rlp encode transaction", "err", err)
 		return common.Hash{}

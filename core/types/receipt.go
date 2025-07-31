@@ -75,9 +75,6 @@ type Log struct {
 	Removed bool `json:"removed,omitempty"`
 }
 
-// Bloom 2048 decimal bloom filter
-type Bloom [common.BloomBytes]byte
-
 // NewReceipt create new receipt
 func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
 	r := &Receipt{
@@ -101,7 +98,7 @@ func (r *Receipt) Hash() common.Hash {
 		r.GasUsed,
 	}
 
-	bytes, err := crypto.RlpEncodeToBytes(rawData)
+	bytes, err := common.RlpEncodeToBytes(rawData)
 	if err != nil {
 		log.Error("Failed to encode receipt", "err", err)
 		return common.Hash{}
@@ -133,24 +130,30 @@ func (r *Receipt) String() string {
 	)
 }
 
-// ========= bloom filter func ========= TODO: study bloom filter.
+// ========= bloom filter func =========
 
-// Add 向布隆過濾器添加數據
+// Bloom 2048 decimal bloom filter
+type Bloom [common.BloomBytes]byte
+
+// Add add data to bloom
 func (b *Bloom) Add(data []byte) {
-	// 布隆過濾器實現
-	// 使用多個哈希函數將數據映射到位圖中
+	// mapping data to bit map
 	hash := crypto.Keccak256(data)
-	for i := 0; i < 3; i++ {
-		bit := (uint(hash[i]) + (uint(hash[i+1]) << 8)) & 2047
-		b[bit/8] |= 1 << (bit % 8)
+	for i := 0; i < 3; i++ { // do 3 times hash
+		// 1. combined hash[i], hash[i+1] to 2 bytes as p1
+		// 2. p1 & 255 (0x07FF) -> make sure result range in 0~2047
+		bit := (uint(hash[i]) + (uint(hash[i+1]) << 8)) & (common.BloomBits - 1)
+		// bit/8: locate which byte in bloom (range is: 0~255)
+		// bit%8: locate with bit in 1 byte (range is: 0~7)
+		b[bit/8] |= 1 << (bit % 8) // bloom[0~255] -> set 1 bit to 1
 	}
 }
 
-// Contains 檢查布隆過濾器是否可能包含數據
+// Contains check bloom filter contains
 func (b *Bloom) Contains(data []byte) bool {
 	hash := crypto.Keccak256(data)
 	for i := 0; i < 3; i++ {
-		bit := (uint(hash[i]) + (uint(hash[i+1]) << 8)) & 2047
+		bit := (uint(hash[i]) + (uint(hash[i+1]) << 8)) & (common.BloomBits - 1)
 		if b[bit/8]&(1<<(bit%8)) == 0 {
 			return false
 		}
@@ -158,7 +161,7 @@ func (b *Bloom) Contains(data []byte) bool {
 	return true
 }
 
-// CreateBloom 從收據列表創建布隆過濾器
+// CreateBloom create bloom filter from receipts
 func CreateBloom(receipts []*Receipt) Bloom {
 	var bloom Bloom
 	for _, receipt := range receipts {
@@ -167,14 +170,14 @@ func CreateBloom(receipts []*Receipt) Bloom {
 	return bloom
 }
 
-// Or 執行布隆過濾器的或操作
+// Or exec bloom filter or
 func (b *Bloom) Or(other *Bloom) {
 	for i := range b {
 		b[i] |= other[i]
 	}
 }
 
-// LogsBloom 從日誌列表創建布隆過濾器
+// LogsBloom create bloom filter from logs
 func LogsBloom(logs []*Log) Bloom {
 	var bloom Bloom
 	for _, log := range logs {

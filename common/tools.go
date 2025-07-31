@@ -1,11 +1,7 @@
 package common
 
 import (
-	"errors"
-	"frizo-blockchain/crypto"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
-	"math/big"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // CalcGasLimit calculate new gas limit for new block
@@ -58,18 +54,10 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 	return gas, nil
 }
 
-// DeriveAddress calculate
-// contract address = Keccak256(sender address + nonce)[12:]
-func DeriveAddress(addr common.Address, nonce uint64) (common.Address, error) {
-	rawData := []interface{}{
-		addr.Bytes(),
-		big.NewInt(int64(nonce)).Bytes(),
-	}
-	bytes, err := crypto.RlpEncodeToBytes(rawData)
-	if err != nil {
-		log.Error("Failed to derive address", "err", err)
-		return common.Address{}, errors.New("failed to derive address")
-	}
+func RlpEncodeToBytes(val interface{}) ([]byte, error) {
+	return rlp.EncodeToBytes(val)
+}
 
-	return common.BytesToAddress(crypto.Keccak256(bytes)[12:]), nil
+func RlpDecodeBytes(b []byte, val interface{}) error {
+	return rlp.DecodeBytes(b, val)
 }

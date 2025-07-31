@@ -34,7 +34,7 @@ func (s Transactions) GetRlp(i int) ([]byte, error) {
 		txn.GasPrice(),
 	}
 
-	bytes, err := crypto.RlpEncodeToBytes(rawData)
+	bytes, err := common.RlpEncodeToBytes(rawData)
 	if err != nil {
 		log.Error("encode txn failed", "err", err)
 		panic("encode txn failed")
@@ -211,7 +211,7 @@ func (h Header) Hash() common.Hash {
 		h.GasUsed,
 	}
 
-	bytes, err := crypto.RlpEncodeToBytes(rawData)
+	bytes, err := common.RlpEncodeToBytes(rawData)
 	if err != nil {
 		log.Error("encode header failed", "err", err)
 		panic("encode header failed")

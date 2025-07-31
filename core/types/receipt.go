@@ -14,8 +14,6 @@ import (
 // - store emit event（for DApp query）
 // - provide proof of txn
 type Receipt struct {
-	Type uint8 `json:"type,omitempty"`
-
 	// PostState state root after exec
 	PostState []byte `json:"root"`
 

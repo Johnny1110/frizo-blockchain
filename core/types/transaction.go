@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"frizo-blockchain/common"
 	"frizo-blockchain/crypto"
@@ -98,6 +99,12 @@ func (tx *Transaction) To() *common.Address { return tx.data.Recipient }
 func (tx *Transaction) Value() *big.Int     { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Data() []byte        { return tx.data.Payload }
 func (tx *Transaction) Time() time.Time     { return tx.data.Time }
+func (tx *Transaction) From() (common.Address, error) {
+	if from := tx.from.Load(); from != nil {
+		return from.(common.Address), nil
+	}
+	return common.Address{}, errors.New("can not load from address form txn")
+}
 
 // ========= Transaction Func =========
 

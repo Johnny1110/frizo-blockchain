@@ -2,6 +2,7 @@ package common
 
 import (
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 // CalcGasLimit calculate new gas limit for new block
@@ -60,4 +61,26 @@ func RlpEncodeToBytes(val interface{}) ([]byte, error) {
 
 func RlpDecodeBytes(b []byte, val interface{}) error {
 	return rlp.DecodeBytes(b, val)
+}
+
+// Keccak256 is a kind of cryptographic hash function, input any data and output 256 bit (32 bytes).
+// What Keccak256 do in ethereum?
+// 1. generate address
+// 2. calculate txn ID
+// 3. calculate smart contract storage mapping slot
+// 4. functionSelector = keccak256("transfer(address,uint256)")[0:4]
+// 5. calculate contract bytecode hash verify
+// Keccak256 calculates and returns the Keccak256 hash of the input data.
+func Keccak256(data ...[]byte) []byte {
+	h := sha3.NewLegacyKeccak256()
+	for _, b := range data {
+		h.Write(b)
+	}
+	return h.Sum(nil)
+}
+
+// Keccak256Hash calculates and returns the Keccak256 hash of the input data,
+// converting it to a common.Hash.
+func Keccak256Hash(data ...[]byte) Hash {
+	return BytesToHash(Keccak256(data...))
 }

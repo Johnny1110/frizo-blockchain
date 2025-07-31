@@ -54,6 +54,12 @@ var (
 
 	ErrIntrinsicGas = errors.New("intrinsic gas too low")
 	ErrGasLimit     = errors.New("exceeds block gas limit")
+
+	ErrUnknownParent       = errors.New("unknown parent")
+	ErrInvalidBlockNumber  = errors.New("invalid block number")
+	ErrInvalidTimestamp    = errors.New("invalid timestamp")
+	ErrNonceMismatch       = errors.New("nonce mismatch")
+	ErrInsufficientBalance = errors.New("insufficient balance")
 )
 
 func ErrInvalidData(s string) error {

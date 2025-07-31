@@ -38,10 +38,13 @@ func generate_test_txns(t *testing.T) []*types.Transaction {
 	return []*types.Transaction{txn}
 }
 
-func generate_test_block(t *testing.T) *types.Block {
-	header := types.NewHeader(common.Hash{}, big.NewInt(0),
+func generate_test_block(t *testing.T, previous *types.Block) *types.Block {
+	parentHash := previous.Hash()
+	header := types.NewHeader(parentHash, big.NewInt(1),
 		uint64(time.Now().UnixMilli()), 1, 1, []byte{}, common.Hash{}, 0)
+	fmt.Println("generate_test_block header num: ", header.Number)
 	block := types.NewBlock(header, generate_test_txns(t), []*types.Receipt{})
+	fmt.Println("generate_test_block block num: ", block.Number())
 	return block
 }
 
@@ -63,7 +66,9 @@ func test_CreateBlockchain(t *testing.T) *Blockchain {
 func Test_InsertBlock(t *testing.T) {
 	// TODO: error..
 	chain := test_CreateBlockchain(t)
-	block := generate_test_block(t)
+	genesisBlock := chain.CurrentBlock()
+	block := generate_test_block(t, genesisBlock)
+	fmt.Println("aa", block.Number())
 	err := chain.InsertBlock(block)
 	assert.Nil(t, err)
 }

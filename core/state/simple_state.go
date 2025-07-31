@@ -165,10 +165,7 @@ func (s *SimpleStateDB) getOrCreateAccount(addr common.Address) *Account {
 	return acc
 }
 
-func (s *SimpleStateDB) Copy() *SimpleStateDB {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
+func (s *SimpleStateDB) copy() *SimpleStateDB {
 	newState := NewSimpleStateDB()
 	for addr, acc := range s.accounts {
 		newState.accounts[addr] = &Account{
@@ -177,4 +174,10 @@ func (s *SimpleStateDB) Copy() *SimpleStateDB {
 		}
 	}
 	return newState
+}
+
+func (s *SimpleStateDB) Copy() *SimpleStateDB {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.copy()
 }

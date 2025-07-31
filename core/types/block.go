@@ -224,15 +224,17 @@ func (h Header) Hash() common.Hash {
 
 func (b *Block) Header() *Header            { return CopyHeader(b.header) }
 func (b *Block) Transactions() Transactions { return b.transactions }
-func (b *Block) Number() *big.Int           { return new(big.Int).Set(b.header.Number) }
-func (b *Block) GasLimit() uint64           { return b.header.GasLimit }
-func (b *Block) GasUsed() uint64            { return b.header.GasUsed }
-func (b *Block) Timestamp() uint64          { return b.header.Timestamp }
-func (b *Block) ParentHash() common.Hash    { return b.header.ParentHash }
-func (b *Block) TxHash() common.Hash        { return b.header.TxHashRoot }
-func (b *Block) ReceiptHash() common.Hash   { return b.header.ReceiptHashRoot }
-func (b *Block) StateRoot() common.Hash     { return b.header.StateHashRoot }
-func (b *Block) Extra() []byte              { return common.CopyBytes(b.header.Extra) }
+func (b *Block) Number() *big.Int {
+	return new(big.Int).Set(b.header.Number)
+}
+func (b *Block) GasLimit() uint64         { return b.header.GasLimit }
+func (b *Block) GasUsed() uint64          { return b.header.GasUsed }
+func (b *Block) Timestamp() uint64        { return b.header.Timestamp }
+func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
+func (b *Block) TxHash() common.Hash      { return b.header.TxHashRoot }
+func (b *Block) ReceiptHash() common.Hash { return b.header.ReceiptHashRoot }
+func (b *Block) StateRoot() common.Hash   { return b.header.StateHashRoot }
+func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Extra) }
 
 // Size return block size
 func (b *Block) Size() uint64 {

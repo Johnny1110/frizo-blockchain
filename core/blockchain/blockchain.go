@@ -7,6 +7,7 @@ import (
 	"frizo-blockchain/core/state"
 	"frizo-blockchain/core/types"
 	"frizo-blockchain/storage"
+	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 	"sync"
 )
@@ -94,9 +95,6 @@ func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
 
 // GetBlock get block by Hash
 func (bc *Blockchain) GetBlock(hash common.Hash) *types.Block {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
-
 	// load from cache
 	if block, ok := bc.blockCache[hash]; ok {
 		return block
@@ -115,15 +113,11 @@ func (bc *Blockchain) GetBlock(hash common.Hash) *types.Block {
 
 // CurrentBlock get current block
 func (bc *Blockchain) CurrentBlock() *types.Block {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
 	return bc.currentBlock
 }
 
 // CurrentState get current state
 func (bc *Blockchain) CurrentState() *state.SimpleStateDB {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
 	return bc.currentState.Copy()
 }
 
@@ -186,6 +180,8 @@ func (bc *Blockchain) validateBlock(block *types.Block) error {
 
 	// verify block number
 	if block.Number().Uint64() != parent.Number().Uint64()+1 {
+		fmt.Println(block.Number().Uint64(), parent.Number().Uint64())
+		log.Error("block number mismatch", "block", block.Number(), "parent", parent.Number())
 		return common.ErrInvalidBlockNumber
 	}
 

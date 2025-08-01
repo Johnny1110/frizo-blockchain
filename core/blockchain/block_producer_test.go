@@ -74,6 +74,7 @@ func Test_ProduceFakeBlock(t *testing.T) {
 	}
 
 	err = bc.InsertBlock(block)
+	fmt.Println("Error: ", err)
 	assert.NotNil(t, err)
 }
 

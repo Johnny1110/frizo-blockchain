@@ -119,10 +119,18 @@ func (tx *Transaction) Hash() common.Hash {
 		return hash.(common.Hash)
 	}
 
-	bytes, _ := common.RlpEncodeToBytes(tx.data.AccountNonce)
+	// include all tx data
+	rawData := []interface{}{
+		tx.data.AccountNonce,
+		tx.data.Recipient,
+		tx.data.Amount,
+		tx.data.GasLimit,
+		tx.data.GasPrice,
+		tx.data.Payload,
+	}
+	bytes, _ := common.RlpEncodeToBytes(rawData)
 	h := crypto.Keccak256Hash(bytes)
 
-	// cache
 	tx.hash.Store(h)
 	return h
 }

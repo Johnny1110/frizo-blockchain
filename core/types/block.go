@@ -261,6 +261,12 @@ func (b *Block) Validate() error {
 		}
 	}
 
+	for _, tx := range b.transactions {
+		if !tx.VerifySignature() {
+			return fmt.Errorf("transaction signature mismatch")
+		}
+	}
+
 	return nil
 }
 

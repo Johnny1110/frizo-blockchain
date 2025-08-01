@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 )
 
+type Receipts []*Receipt
+
 type Transactions []*Transaction
 
 // Len return txn size
@@ -50,12 +52,11 @@ func (s Transactions) GetRlp(i int) ([]byte, error) {
 type Block struct {
 	header       *Header
 	transactions Transactions
+	receipts     Receipts
 
 	// cache
-	txnTree     atomic.Value
-	receiptTree atomic.Value
-	hash        atomic.Value
-	size        atomic.Value
+	hash atomic.Value
+	size atomic.Value
 }
 
 // Header BlockHeader
@@ -113,7 +114,9 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 
 	// Receipt tree
 	if len(receipts) > 0 {
-		b.header.ReceiptHashRoot = b.calculateReceiptHash(receipts)
+		b.receipts = make(Receipts, len(receipts))
+		copy(b.receipts, receipts)
+		b.header.ReceiptHashRoot = b.calculateReceiptHash()
 	}
 
 	return b
@@ -138,48 +141,26 @@ func CopyHeader(h *Header) *Header {
 }
 
 // calculateTxHash calculate txn merkle root
-func (b Block) calculateTxHash() common.Hash {
+func (b *Block) calculateTxHash() common.Hash {
 	if len(b.transactions) == 0 {
 		return common.Hash{}
 	}
 
-	var tree *trie.MerkleTree
-
-	if cachedTree := b.txnTree.Load(); cachedTree == nil {
-		txHashes := make([][]byte, len(b.transactions))
-		for i, tx := range b.transactions {
-			txHashes[i] = tx.Hash().Bytes()
-		}
-
-		tree = trie.NewMerkleTree(txHashes, nil) // using default hashFunc (nil)
-		b.txnTree.Store(tree)
-	} else {
-		tree = cachedTree.(*trie.MerkleTree)
+	txHashes := make([][]byte, len(b.transactions))
+	for i, tx := range b.transactions {
+		txHashes[i] = tx.Hash().Bytes()
 	}
-
+	tree := b.GetTxnTree()
 	return tree.GetRootHash()
 }
 
 // calculateReceiptHash calculate receipt merkle root
-func (b Block) calculateReceiptHash(receipts []*Receipt) common.Hash {
-	if len(receipts) == 0 {
+func (b *Block) calculateReceiptHash() common.Hash {
+	if len(b.receipts) == 0 {
 		return common.Hash{}
 	}
 
-	var tree *trie.MerkleTree
-
-	if cachedTree := b.receiptTree.Load(); cachedTree == nil {
-		receiptHashes := make([][]byte, len(receipts))
-		for i, receipt := range receipts {
-			receiptHashes[i] = receipt.Hash().Bytes()
-		}
-
-		tree = trie.NewMerkleTree(receiptHashes, nil) // using default hashFunc (nil)
-		b.receiptTree.Store(tree)
-	} else {
-		tree = cachedTree.(*trie.MerkleTree)
-	}
-
+	tree := b.GetReceiptTree()
 	return tree.GetRootHash()
 }
 
@@ -196,7 +177,7 @@ func (b *Block) Hash() common.Hash {
 }
 
 // Hash return header's hash
-func (h Header) Hash() common.Hash {
+func (h *Header) Hash() common.Hash {
 	rawData := []interface{}{
 		h.ParentHash.Hex(),
 		h.Number.String(),
@@ -294,15 +275,27 @@ func (b *Block) String() string {
 }
 
 func (b *Block) DebugTxnTree() {
-	if t := b.txnTree.Load(); t != nil {
-		tree := t.(trie.MerkleTree)
-		tree.PrintTree()
-	}
+	fmt.Println("Txn Tree:")
+	b.GetTxnTree().PrintTree()
 }
 
 func (b *Block) DebugReceiptTree() {
-	if t := b.receiptTree.Load(); t != nil {
-		tree := t.(trie.MerkleTree)
-		tree.PrintTree()
+	fmt.Println("Receipt Tree:")
+	b.GetReceiptTree().PrintTree()
+}
+
+func (b Block) GetTxnTree() *trie.MerkleTree {
+	txHashes := make([][]byte, len(b.transactions))
+	for i, tx := range b.transactions {
+		txHashes[i] = tx.Hash().Bytes()
 	}
+	return trie.NewMerkleTree(txHashes, nil) // using default hashFunc (nil)
+}
+
+func (b Block) GetReceiptTree() *trie.MerkleTree {
+	receiptHashes := make([][]byte, len(b.receipts))
+	for i, receipt := range b.receipts {
+		receiptHashes[i] = receipt.Hash().Bytes()
+	}
+	return trie.NewMerkleTree(receiptHashes, nil) // using default hashFunc (nil)
 }

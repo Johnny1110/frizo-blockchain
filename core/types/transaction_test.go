@@ -12,7 +12,7 @@ func Test_Create_Txn(t *testing.T) {
 	wallet, _, err := crypto.CreateWallet()
 	assert.Nil(t, err)
 
-	txn := NewTransaction(13, &wallet, big.NewInt(10000), 6000, big.NewInt(10000), []byte{})
+	txn := NewTransaction(13, &wallet, big.NewInt(10000), big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn.Value())
 	fmt.Println("data:", txn.Data())
 	fmt.Println("nonce:", txn.Nonce())
@@ -29,7 +29,7 @@ func Test_Sign_Txn_then_Verify(t *testing.T) {
 	wallet, privStr, err := crypto.CreateWallet()
 	assert.Nil(t, err)
 
-	txn := NewTransaction(13, &wallet, big.NewInt(10000), 6000, big.NewInt(10000), []byte{})
+	txn := NewTransaction(13, &wallet, big.NewInt(10000), big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn.Value())
 	fmt.Println("data:", txn.Data())
 	fmt.Println("nonce:", txn.Nonce())

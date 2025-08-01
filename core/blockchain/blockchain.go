@@ -119,7 +119,6 @@ func (bc *Blockchain) CurrentState() *state.SimpleStateDB {
 
 // InsertBlock insert new block into chain
 func (bc *Blockchain) InsertBlock(block *types.Block) error {
-
 	// 1. validate Block
 	if err := bc.validateBlock(block); err != nil {
 		return err

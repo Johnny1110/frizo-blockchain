@@ -249,6 +249,10 @@ func (tx *Transaction) String() string {
 	)
 }
 
+func (tx *Transaction) SetValue(value *big.Int) {
+	tx.data.Amount = value
+}
+
 // TxByNonce all txn order by nonce
 type TxByNonce []*Transaction
 

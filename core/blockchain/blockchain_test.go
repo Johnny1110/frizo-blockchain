@@ -18,24 +18,41 @@ func generate_test_txns(t *testing.T) []*types.Transaction {
 
 	toAddress := common.HexToAddress("0xA2D969E82524001Cb6a2357dBF5922B04aD2FCD8")
 
-	txn := types.NewTransaction(0, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
-	fmt.Println("value:", txn.Value())
-	fmt.Println("data:", txn.Data())
-	fmt.Println("nonce:", txn.Nonce())
-	fmt.Println("hash:", txn.Hash())
+	txn_1 := types.NewTransaction(0, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
+	fmt.Println("value:", txn_1.Value())
+	fmt.Println("data:", txn_1.Data())
+	fmt.Println("nonce:", txn_1.Nonce())
+	fmt.Println("hash:", txn_1.Hash())
 
 	privKey, err := crypto.ImportPrivateKey(privStr)
 	assert.Nil(t, err)
 
-	err = txn.SignTx(privKey)
+	err = txn_1.SignTx(privKey)
 	assert.Nil(t, err)
-	sender, err := txn.Sender()
+	sender, err := txn_1.Sender()
 	assert.Nil(t, err)
 	fmt.Println("sender:", sender)
 	assert.Equal(t, wallet, sender)
-	assert.True(t, txn.VerifySignature())
-	fmt.Println("txn:", txn)
-	return []*types.Transaction{txn}
+	assert.True(t, txn_1.VerifySignature())
+	fmt.Println("txn:", txn_1)
+
+	txn_2 := types.NewTransaction(1, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
+	fmt.Println("value:", txn_2.Value())
+	fmt.Println("data:", txn_2.Data())
+	fmt.Println("nonce:", txn_2.Nonce())
+	fmt.Println("hash:", txn_2.Hash())
+
+	assert.Nil(t, err)
+
+	err = txn_2.SignTx(privKey)
+	assert.Nil(t, err)
+	assert.Nil(t, err)
+	fmt.Println("sender:", sender)
+	assert.Equal(t, wallet, sender)
+	assert.True(t, txn_2.VerifySignature())
+	fmt.Println("txn:", txn_2)
+
+	return []*types.Transaction{txn_1, txn_2}
 }
 
 func generate_test_block(t *testing.T, previous *types.Block) *types.Block {

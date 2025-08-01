@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"frizo-blockchain/common"
 	"math/big"
 	"sync"
@@ -180,4 +181,13 @@ func (s *SimpleStateDB) Copy() *SimpleStateDB {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.copy()
+}
+
+func (s *SimpleStateDB) String() string {
+	content := "State DB: \n"
+	for addr, acc := range s.accounts {
+		t := fmt.Sprint("Address:", addr, " Balance:", acc.Balance, "\n")
+		content += t
+	}
+	return content
 }

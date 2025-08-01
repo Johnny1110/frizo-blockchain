@@ -34,7 +34,8 @@ type txdata struct {
 	GasPrice *big.Int `json:"gasPrice"`
 
 	// GasLimit this txn max gas usage (prevent infinite loop and control cost)
-	GasLimit uint64 `json:"gas"`
+	GasLimit *big.Int `json:"gasLimit"`
+	GasCost  *big.Int `json:"gasCost"`
 
 	// Recipient receiver address（nil is create contract）
 	// - nil create contract
@@ -63,7 +64,7 @@ type txdata struct {
 // ========= Transaction Constructor =========
 
 // NewTransaction create a new TXN
-func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
+func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit *big.Int, gasPrice *big.Int, data []byte) *Transaction {
 	if amount == nil {
 		amount = new(big.Int)
 	}
@@ -77,6 +78,7 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		Recipient:    to,
 		Amount:       new(big.Int).Set(amount),
 		GasLimit:     gasLimit,
+		GasCost:      new(big.Int).SetUint64(common.TxGas), // default txn gas fee
 		GasPrice:     new(big.Int).Set(gasPrice),
 		Payload:      data,
 		Time:         time.Now(),
@@ -87,14 +89,15 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 
 // NewContractCreation create a new contract creation txn
 // to address is nil
-func NewContractCreation(nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte) *Transaction {
+func NewContractCreation(nonce uint64, amount *big.Int, gasLimit *big.Int, gasPrice *big.Int, data []byte) *Transaction {
 	return NewTransaction(nonce, nil, amount, gasLimit, gasPrice, data)
 }
 
 // ========= Transaction Getters =========
 func (tx *Transaction) Nonce() uint64       { return tx.data.AccountNonce }
 func (tx *Transaction) GasPrice() *big.Int  { return new(big.Int).Set(tx.data.GasPrice) }
-func (tx *Transaction) GasLimit() uint64    { return tx.data.GasLimit }
+func (tx *Transaction) GasCost() *big.Int   { return new(big.Int).Set(tx.data.GasCost) }
+func (tx *Transaction) GasLimit() *big.Int  { return tx.data.GasLimit }
 func (tx *Transaction) To() *common.Address { return tx.data.Recipient }
 func (tx *Transaction) Value() *big.Int     { return new(big.Int).Set(tx.data.Amount) }
 func (tx *Transaction) Data() []byte        { return tx.data.Payload }
@@ -204,10 +207,10 @@ func (tx *Transaction) Sender() (common.Address, error) {
 	return address, nil
 }
 
-// Cost return txn cost
-// Cost = transfer amount + (gas limit × gas price)
-func (tx *Transaction) Cost() *big.Int {
-	total := new(big.Int).Mul(tx.data.GasPrice, new(big.Int).SetUint64(tx.data.GasLimit))
+// TotalCost return txn cost
+// TotalCost = transfer amount + (gas limit × gas price)
+func (tx *Transaction) TotalCost() *big.Int {
+	total := new(big.Int).Mul(tx.data.GasPrice, tx.data.GasCost)
 	total.Add(total, tx.data.Amount)
 	return total
 }

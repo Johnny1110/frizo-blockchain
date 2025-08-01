@@ -13,6 +13,7 @@ type Database interface {
 	LoadBlockHash(number *big.Int) common.Hash
 	LoadBlock(hash common.Hash) (*types.Block, error)
 	StoreBlock(block *types.Block) error
+	StoreState(state *state.SimpleStateDB)
 }
 
 type MockDatabase struct {
@@ -29,6 +30,12 @@ func NewMockDatabase() Database {
 		blockHashMap: make(map[*big.Int]common.Hash),
 		blockMap:     make(map[common.Hash]*types.Block),
 	}
+}
+
+func (m *MockDatabase) StoreState(state *state.SimpleStateDB) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	m.stateMap[state.ComputeRoot()] = state
 }
 
 func (m *MockDatabase) LoadState(root common.Hash) *state.SimpleStateDB {

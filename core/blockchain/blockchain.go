@@ -9,11 +9,9 @@ import (
 	"frizo-blockchain/storage"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
-	"sync"
 )
 
 type Blockchain struct {
-	mu sync.RWMutex
 	db storage.Database
 
 	currentBlock *types.Block
@@ -77,8 +75,6 @@ func (bc *Blockchain) initGenesis() error {
 
 // GetBlockByNumber Get Block by block height
 func (bc *Blockchain) GetBlockByNumber(number *big.Int) *types.Block {
-	bc.mu.RLock()
-	defer bc.mu.RUnlock()
 
 	hash, ok := bc.numberCache[number]
 	if !ok {
@@ -123,8 +119,6 @@ func (bc *Blockchain) CurrentState() *state.SimpleStateDB {
 
 // InsertBlock insert new block into chain
 func (bc *Blockchain) InsertBlock(block *types.Block) error {
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
 
 	// 1. validate Block
 	if err := bc.validateBlock(block); err != nil {
@@ -134,22 +128,25 @@ func (bc *Blockchain) InsertBlock(block *types.Block) error {
 	// 2. create new state copy
 	newState := bc.currentState.Copy()
 
-	// 3. 執行所有交易
+	// 3. exec all receipts
 	receipts := make([]*types.Receipt, 0, len(block.Transactions()))
-	gasUsed := uint64(0)
+	gasUsed := big.NewInt(0)
 
 	for i, tx := range block.Transactions() {
-		receipt, err := bc.applyTransaction(newState, tx, block, uint(i), gasUsed)
+		receipt, err := bc.applyTransaction(newState, tx, uint(i), gasUsed, block)
 		if err != nil {
 			return fmt.Errorf("failed to apply tx %d: %w", i, err)
 		}
 		receipts = append(receipts, receipt)
-		gasUsed += receipt.GasUsed
+		gasUsed = new(big.Int).Add(gasUsed, receipt.GasUsed)
 	}
 
 	// 4. verify state root
 	stateRoot := newState.ComputeRoot()
 	if stateRoot != block.StateRoot() {
+		fmt.Println("stateRoot:", stateRoot)
+		fmt.Println("blockRoot:", block.StateRoot())
+		log.Error("stateRoot mismatch", "expected", block.StateRoot(), "actual", stateRoot)
 		return errors.New("state root mismatch")
 	}
 
@@ -161,6 +158,8 @@ func (bc *Blockchain) InsertBlock(block *types.Block) error {
 	// 6. update current state
 	bc.currentBlock = block
 	bc.currentState = newState
+
+	bc.db.StoreState(newState)
 
 	return nil
 }
@@ -209,8 +208,6 @@ func (bc *Blockchain) loadBlock(hash common.Hash) (*types.Block, error) {
 }
 
 func (bc *Blockchain) SaveBlock(block *types.Block) error {
-	bc.mu.Lock()
-	defer bc.mu.Unlock()
 
 	err := bc.db.StoreBlock(block)
 	if err != nil {
@@ -226,9 +223,9 @@ func (bc *Blockchain) SaveBlock(block *types.Block) error {
 func (bc *Blockchain) applyTransaction(
 	stateDB *state.SimpleStateDB,
 	tx *types.Transaction,
-	block *types.Block,
 	index uint,
-	cumulativeGasUsed uint64,
+	cumulativeGasUsed *big.Int,
+	block *types.Block,
 ) (*types.Receipt, error) {
 	// 1. verify proof
 	from, err := tx.From()
@@ -242,7 +239,7 @@ func (bc *Blockchain) applyTransaction(
 	}
 
 	// 3. check balance（include gas fee）
-	totalCost := tx.Cost()
+	totalCost := tx.TotalCost()
 	if stateDB.GetBalance(from).Cmp(totalCost) < 0 {
 		return nil, common.ErrInsufficientBalance
 	}
@@ -251,8 +248,7 @@ func (bc *Blockchain) applyTransaction(
 
 	// subtract gas fee
 	// simplify: using all gas limit as fee
-	gasFee := new(big.Int).SetUint64(tx.GasLimit())
-	if err = stateDB.SubBalance(from, gasFee); err != nil {
+	if err = stateDB.SubBalance(from, tx.GasCost()); err != nil {
 		stateDB.RevertToSnapshot(snapshot)
 		return nil, err
 	}
@@ -272,7 +268,7 @@ func (bc *Blockchain) applyTransaction(
 	receipt := &types.Receipt{
 		PostState:         stateDB.ComputeRoot().Bytes(),
 		Status:            1, // success
-		CumulativeGasUsed: cumulativeGasUsed + tx.GasLimit(),
+		CumulativeGasUsed: new(big.Int).Add(cumulativeGasUsed, tx.GasCost()),
 		TxHash:            tx.Hash(),
 		GasUsed:           tx.GasLimit(), // simplify: using all gas limit as fee
 		BlockHash:         block.Hash(),

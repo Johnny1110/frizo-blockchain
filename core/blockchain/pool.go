@@ -1,8 +1,7 @@
-package txn
+package blockchain
 
 import (
 	"frizo-blockchain/common"
-	"frizo-blockchain/core/blockchain"
 	"frizo-blockchain/core/types"
 	"sync"
 )
@@ -12,11 +11,11 @@ type TxPool struct {
 	mu         sync.RWMutex
 	pending    map[common.Address][]*types.Transaction
 	queue      map[common.Address][]*types.Transaction
-	blockchain *blockchain.Blockchain
+	blockchain *Blockchain
 }
 
 // NewTxPool create txn pool
-func NewTxPool(blockchain *blockchain.Blockchain) *TxPool {
+func NewTxPool(blockchain *Blockchain) *TxPool {
 	return &TxPool{
 		pending:    make(map[common.Address][]*types.Transaction),
 		queue:      make(map[common.Address][]*types.Transaction),

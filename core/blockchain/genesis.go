@@ -8,7 +8,7 @@ import (
 
 type Genesis struct {
 	Timestamp  uint64
-	GasLimit   uint64
+	GasLimit   *big.Int
 	Difficulty *big.Int
 	Alloc      map[common.Address]GenesisAccount
 
@@ -21,7 +21,7 @@ func (g *Genesis) ToBlock() *types.Block {
 		Number:     big.NewInt(0),
 		Timestamp:  g.Timestamp,
 		GasLimit:   g.GasLimit,
-		GasUsed:    0,
+		GasUsed:    big.NewInt(0),
 		Extra:      g.ExtraData,
 	}
 
@@ -39,7 +39,7 @@ type GenesisAccount struct {
 func DefaultGenesis() *Genesis {
 	return &Genesis{
 		Timestamp:  1640995200, // 2022-01-01 00:00:00
-		GasLimit:   5000000,
+		GasLimit:   big.NewInt(5000000),
 		Difficulty: big.NewInt(1),
 		Alloc: map[common.Address]GenesisAccount{
 			// pre alloc some test account

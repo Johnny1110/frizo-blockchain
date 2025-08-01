@@ -21,7 +21,7 @@ type Receipt struct {
 	Status uint64 `json:"status"`
 
 	// CumulativeGasUsed (區塊中到這筆交易為止的累計 gas 使用量)
-	CumulativeGasUsed uint64 `json:"cumulativeGasUsed"`
+	CumulativeGasUsed *big.Int `json:"cumulativeGasUsed"`
 
 	// Bloom bloom filter
 	// - for filter log and fast query log
@@ -37,7 +37,7 @@ type Receipt struct {
 	ContractAddress *common.Address `json:"contractAddress,omitempty"`
 
 	// GasUsed consumed gas
-	GasUsed uint64 `json:"gasUsed"`
+	GasUsed *big.Int `json:"gasUsed"`
 
 	// BlockHash block hash
 	BlockHash common.Hash `json:"blockHash,omitempty"`
@@ -74,7 +74,7 @@ type Log struct {
 }
 
 // NewReceipt create new receipt
-func NewReceipt(root []byte, failed bool, cumulativeGasUsed uint64) *Receipt {
+func NewReceipt(root []byte, failed bool, cumulativeGasUsed *big.Int) *Receipt {
 	r := &Receipt{
 		PostState:         root,
 		CumulativeGasUsed: cumulativeGasUsed,

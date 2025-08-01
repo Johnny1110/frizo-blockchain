@@ -54,7 +54,6 @@ type Block struct {
 	// cache
 	txnTree     atomic.Value
 	receiptTree atomic.Value
-	stateTree   atomic.Value
 	hash        atomic.Value
 	size        atomic.Value
 }
@@ -75,9 +74,9 @@ type Header struct {
 	// state MPT root (state trie root)
 	StateHashRoot common.Hash `json:"stateRoot"`
 	// GasLimit gas limit for this block (prevent block oversize, dynamic adjustment)
-	GasLimit uint64 `json:"gasLimit"`
+	GasLimit *big.Int `json:"gasLimit"`
 	// GasUsed used gas
-	GasUsed uint64 `json:"gasUsed"`
+	GasUsed *big.Int `json:"gasUsed"`
 	// Extra extra data 32 byte (validator can put custom data into this field)
 	Extra []byte `json:"extraData"`
 	// MixDigest for random number
@@ -87,7 +86,7 @@ type Header struct {
 }
 
 func NewHeader(parentHash common.Hash, number *big.Int, timestamp uint64,
-	gasLimit, gasUsed uint64,
+	gasLimit, gasUsed *big.Int,
 	extra []byte, mixDigest common.Hash, nonce uint64) *Header {
 	return &Header{
 		ParentHash: parentHash,
@@ -117,9 +116,6 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 		b.header.ReceiptHashRoot = b.calculateReceiptHash(receipts)
 	}
 
-	// TODO: State tree
-	//b.header.ReceiptHashRoot = b.calculateStateHash()
-
 	return b
 }
 
@@ -131,7 +127,7 @@ func NewBlockWithHeader(header *Header) *Block {
 // CopyHeader blocker header deep copy
 func CopyHeader(h *Header) *Header {
 	cpy := *h
-	if h.Number = new(big.Int); h.Number != nil {
+	if h.Number != nil {
 		cpy.Number = new(big.Int).Set(h.Number)
 	}
 	if len(h.Extra) > 0 {
@@ -179,6 +175,7 @@ func (b Block) calculateReceiptHash(receipts []*Receipt) common.Hash {
 		}
 
 		tree = trie.NewMerkleTree(receiptHashes, nil) // using default hashFunc (nil)
+		b.receiptTree.Store(tree)
 	} else {
 		tree = cachedTree.(*trie.MerkleTree)
 	}
@@ -227,8 +224,8 @@ func (b *Block) Transactions() Transactions { return b.transactions }
 func (b *Block) Number() *big.Int {
 	return new(big.Int).Set(b.header.Number)
 }
-func (b *Block) GasLimit() uint64         { return b.header.GasLimit }
-func (b *Block) GasUsed() uint64          { return b.header.GasUsed }
+func (b *Block) GasLimit() *big.Int       { return b.header.GasLimit }
+func (b *Block) GasUsed() *big.Int        { return b.header.GasUsed }
 func (b *Block) Timestamp() uint64        { return b.header.Timestamp }
 func (b *Block) ParentHash() common.Hash  { return b.header.ParentHash }
 func (b *Block) TxHash() common.Hash      { return b.header.TxHashRoot }
@@ -270,7 +267,7 @@ func (b *Block) Validate() error {
 	}
 
 	// validate gas usage lower than gas limit
-	if b.header.GasUsed > b.header.GasLimit {
+	if b.header.GasUsed.Cmp(b.header.GasLimit) > 0 {
 		return fmt.Errorf("gas used (%d) exceeds gas limit (%d)",
 			b.header.GasUsed, b.header.GasLimit)
 	}
@@ -294,4 +291,18 @@ func (b *Block) String() string {
 		len(b.transactions),
 		b.header.GasUsed,
 	)
+}
+
+func (b *Block) DebugTxnTree() {
+	if t := b.txnTree.Load(); t != nil {
+		tree := t.(trie.MerkleTree)
+		tree.PrintTree()
+	}
+}
+
+func (b *Block) DebugReceiptTree() {
+	if t := b.receiptTree.Load(); t != nil {
+		tree := t.(trie.MerkleTree)
+		tree.PrintTree()
+	}
 }

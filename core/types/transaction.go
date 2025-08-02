@@ -2,7 +2,6 @@ package types
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"frizo-blockchain/common"
 	"frizo-blockchain/crypto"
@@ -103,10 +102,7 @@ func (tx *Transaction) Value() *big.Int     { return new(big.Int).Set(tx.data.Am
 func (tx *Transaction) Data() []byte        { return tx.data.Payload }
 func (tx *Transaction) Time() time.Time     { return tx.data.Time }
 func (tx *Transaction) From() (common.Address, error) {
-	if from := tx.from.Load(); from != nil {
-		return from.(common.Address), nil
-	}
-	return common.Address{}, errors.New("can not load from address form txn")
+	return tx.Sender()
 }
 
 // ========= Transaction Func =========
@@ -115,9 +111,9 @@ func (tx *Transaction) From() (common.Address, error) {
 // - for txn's unique ID, build merkle tree and query index
 func (tx *Transaction) Hash() common.Hash {
 	// load from cache
-	if hash := tx.hash.Load(); hash != nil {
-		return hash.(common.Hash)
-	}
+	//if hash := tx.hash.Load(); hash != nil {
+	//	return hash.(common.Hash)
+	//}
 
 	// include all tx data
 	rawData := []interface{}{
@@ -160,7 +156,6 @@ func (tx *Transaction) SignTx(privateKey *ecdsa.PrivateKey) error {
 
 // signingHash return tx_hash (AccountNonce + Recipient + Amount + GasLimit + Payload)
 func (tx *Transaction) signingHash() common.Hash {
-
 	rawData := []interface{}{
 		tx.data.AccountNonce,
 		tx.data.Recipient,
@@ -185,9 +180,9 @@ func (tx *Transaction) VerifySignature() bool {
 
 // Sender return txn sender address by sign verify
 func (tx *Transaction) Sender() (common.Address, error) {
-	if from := tx.from.Load(); from != nil {
-		return from.(common.Address), nil
-	}
+	//if from := tx.from.Load(); from != nil {
+	//	return from.(common.Address), nil
+	//}
 
 	if !tx.data.signature.Validate() {
 		log.Warn("[types][Sender] failed to perform signature Validate")

@@ -167,6 +167,7 @@ func (bc *Blockchain) InsertBlock(block *types.Block) error {
 func (bc *Blockchain) validateBlock(block *types.Block) error {
 	// basic verify
 	if err := block.Validate(); err != nil {
+		log.Error("validate block failed", "err", err)
 		return err
 	}
 

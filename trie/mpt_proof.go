@@ -1,6 +1,7 @@
 package trie
 
 import (
+	"bytes"
 	"errors"
 	"frizo-blockchain/common"
 	"github.com/ethereum/go-ethereum/log"
@@ -31,7 +32,7 @@ func (mpt *ModifiedMerklePatriciaTree) GenerateProof(key []byte) (*MPTProof, err
 	nibbles := KeyToHex(key)
 	proof := &MPTProof{
 		Key:      key,
-		RootHash: *mpt.root.Hash,
+		RootHash: mpt.GetRoot(),
 		Proof:    make([][]byte, 0),
 	}
 
@@ -52,18 +53,43 @@ func (mpt *ModifiedMerklePatriciaTree) collectProof(node *MPTNode, path []byte, 
 		return nil, nil
 	}
 
-	// Encode current node to proof
+	// Encode and add current node to proof
 	encodeVal := mpt.encodeNode(node)
 	*proof = append(*proof, encodeVal)
 
-	//TODO
-	return nil, nil
+	switch node.NodeType {
+	case LEAF:
+		if bytes.Equal(path, node.Path) {
+			return node.Value, nil
+		}
+		return nil, nil
 
-}
+	case EXTENSION:
+		nodePathLen := len(node.Path)
+		if len(path) >= nodePathLen && bytes.Equal(path[:nodePathLen], node.Path) {
+			return mpt.collectProof(node.getExtensionChild(), path[nodePathLen:], proof)
+		}
+		return nil, nil
 
-// encodeNodeForProof encodes a node for inclusion in a proof
-// This must match the encoding used in MPT for hash calculation
-func encodeNodeForProof(node *MPTNode) []byte {
-	// TODO
-	return nil
+	case BRANCH:
+		if len(path) == 0 {
+			// this branch value is the target
+			return node.Value, nil
+		}
+
+		targetChildIdx := path[0]
+		if targetChildIdx < 0 || targetChildIdx >= 16 {
+			log.Error("invalid child index", "index", targetChildIdx)
+			return nil, errors.New("collect proof failed, invalid target child index")
+		}
+		targetChild := node.Children[targetChildIdx]
+		if targetChild != nil {
+			remainPath := path[1:]
+			return mpt.collectProof(targetChild, remainPath, proof)
+		} else {
+			return nil, nil
+		}
+	default:
+		return nil, errors.New("invalid node type")
+	}
 }

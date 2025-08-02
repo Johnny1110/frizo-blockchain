@@ -59,6 +59,7 @@ func RlpEncodeToBytes(val interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(val)
 }
 
+// RlpDecodeBytes parses RLP data from b into val.
 func RlpDecodeBytes(b []byte, val interface{}) error {
 	return rlp.DecodeBytes(b, val)
 }

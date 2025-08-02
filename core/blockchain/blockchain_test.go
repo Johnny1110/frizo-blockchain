@@ -18,7 +18,7 @@ func generate_test_txns(t *testing.T) []*types.Transaction {
 
 	toAddress := common.HexToAddress("0xA2D969E82524001Cb6a2357dBF5922B04aD2FCD8")
 
-	txn_1 := types.NewTransaction(0, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
+	txn_1 := types.NewTransaction(1, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn_1.Value())
 	fmt.Println("data:", txn_1.Data())
 	fmt.Println("nonce:", txn_1.Nonce())
@@ -36,7 +36,7 @@ func generate_test_txns(t *testing.T) []*types.Transaction {
 	assert.True(t, txn_1.VerifySignature())
 	fmt.Println("txn:", txn_1)
 
-	txn_2 := types.NewTransaction(1, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
+	txn_2 := types.NewTransaction(2, &toAddress, common.Ether, big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn_2.Value())
 	fmt.Println("data:", txn_2.Data())
 	fmt.Println("nonce:", txn_2.Nonce())

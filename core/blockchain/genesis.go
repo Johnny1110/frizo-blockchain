@@ -45,9 +45,11 @@ func DefaultGenesis() *Genesis {
 			// pre alloc some test account
 			common.HexToAddress("0x521147b68d948f24A341E5C0Da50Fa5AA39A06D7"): {
 				Balance: new(big.Int).Mul(big.NewInt(1000), common.Ether), // 1000 ETH
+				Nonce:   1,
 			},
 			common.HexToAddress("0xA2D969E82524001Cb6a2357dBF5922B04aD2FCD8"): {
 				Balance: new(big.Int).Mul(big.NewInt(100), common.Ether), // 100 ETH
+				Nonce:   0,
 			},
 		},
 	}

@@ -1,7 +1,6 @@
 package blockchain
 
 import (
-	"errors"
 	"fmt"
 	"frizo-blockchain/common"
 	"github.com/stretchr/testify/assert"
@@ -72,10 +71,15 @@ func Test_ProduceFakeBlock(t *testing.T) {
 
 	for _, tx := range block.Transactions() {
 		// hack txn data.. make all value to 10
-		tx.SetValue(big.NewInt(10))
+		tx.SetValue(big.NewInt(12314122511))
 	}
+
+	fmt.Println("已完成造假：================================================>")
+
 	// check header merkle tree root hash should be failed.
-	assert.Error(t, errors.New("transaction root hash mismatch"), bc.InsertBlock(block))
+	err = bc.InsertBlock(block)
+	fmt.Println("err:", err)
+	assert.NotNil(t, err)
 }
 
 func debugBlockchain(bc *Blockchain) {

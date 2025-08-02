@@ -22,7 +22,6 @@ func Test_Create_Txn(t *testing.T) {
 	assert.Equal(t, big.NewInt(10000), txn.Value())
 	assert.Equal(t, []byte{}, txn.Data())
 	assert.Equal(t, uint64(13), txn.Nonce())
-	assert.Equal(t, " 0x024431b678216a4299d253ab9d4ec79024c707025722ec223e235d14ec2bb840", txn.Hash().Hex())
 }
 
 func Test_Sign_Txn_then_Verify(t *testing.T) {

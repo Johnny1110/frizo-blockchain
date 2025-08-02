@@ -254,17 +254,18 @@ func (b *Block) Validate() error {
 			b.header.GasUsed, b.header.GasLimit)
 	}
 
-	// validate txn hash root
 	if len(b.transactions) > 0 {
+		// validate txn hash root
 		calculatedTxHash := b.calculateTxHash()
 		if calculatedTxHash != b.header.TxHashRoot {
 			return fmt.Errorf("transaction root hash mismatch")
 		}
-	}
 
-	for _, tx := range b.transactions {
-		if !tx.VerifySignature() {
-			return fmt.Errorf("transaction signature mismatch")
+		// validate every txn signature
+		for _, tx := range b.transactions {
+			if !tx.VerifySignature() {
+				return fmt.Errorf("transaction signature mismatch")
+			}
 		}
 	}
 

@@ -175,6 +175,10 @@ func (tx *Transaction) signingHash() common.Hash {
 }
 
 // VerifySignature validate signature, return bool
+// unable to check：
+// - 1. Account Nonce（need account state）
+// - 2. Account Balance（need account state）
+// - 3. Gas（need executed）
 func (tx *Transaction) VerifySignature() bool {
 	_, err := tx.Sender()
 	return err == nil
@@ -195,6 +199,7 @@ func (tx *Transaction) Sender() (common.Address, error) {
 
 	// restore address from SRV
 	pubKey, err := crypto.Ecrecover(h[:], tx.data.signature)
+
 	if err != nil {
 		log.Warn("[types][Sender] failed to perform Ecrecover", "err", err)
 		return common.Address{}, common.ErrInvalidSignature
@@ -206,7 +211,6 @@ func (tx *Transaction) Sender() (common.Address, error) {
 	}
 
 	address := crypto.PubkeyToAddress(pubKey)
-
 	tx.from.Store(address)
 
 	return address, nil

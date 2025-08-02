@@ -8,8 +8,9 @@ import (
 
 // ========== MPT Debug & Print Tools ==========
 
-// PrintTree 打印整個 MPT 結構
+// PrintTree 打印整個 MPT 結構（改進版）
 func (t *ModifiedMerklePatriciaTree) PrintTree() {
+	t.GetRoot()
 	fmt.Println("\n╔════════════════════════════════════════════════════════╗")
 	fmt.Println("║         Modified Merkle Patricia Tree Structure        ║")
 	fmt.Println("╚════════════════════════════════════════════════════════╝")
@@ -20,99 +21,103 @@ func (t *ModifiedMerklePatriciaTree) PrintTree() {
 	}
 
 	fmt.Println("\nRoot:")
-	t.printNode(t.root, "", true, []byte{})
+	t.printNodeImproved(t.root, "", []byte{}, 0)
 	fmt.Println()
 }
 
-// printNode 遞歸打印節點
-func (t *ModifiedMerklePatriciaTree) printNode(node *MPTNode, prefix string, isLast bool, currentPath []byte) {
+// printNodeImproved 改進的節點打印方法
+func (t *ModifiedMerklePatriciaTree) printNodeImproved(node *MPTNode, indent string, currentPath []byte, depth int) {
 	if node == nil {
 		return
-	}
-
-	// 打印連接線
-	fmt.Print(prefix)
-	if isLast {
-		fmt.Print("└── ")
-		prefix += "    "
-	} else {
-		fmt.Print("├── ")
-		prefix += "│   "
 	}
 
 	// 根據節點類型打印
 	switch node.NodeType {
 	case LEAF:
-		t.printLeafNode(node, currentPath)
+		t.printLeafNodeImproved(node, indent, currentPath)
 
 	case EXTENSION:
-		t.printExtensionNode(node, prefix, currentPath)
+		t.printExtensionNodeImproved(node, indent, currentPath, depth)
 
 	case BRANCH:
-		t.printBranchNode(node, prefix, currentPath)
+		t.printBranchNodeImproved(node, indent, currentPath, depth)
 
 	default:
-		fmt.Printf("[UNKNOWN NODE TYPE]\n")
+		fmt.Printf("%s[UNKNOWN NODE TYPE]\n", indent)
 	}
 }
 
-// printLeafNode 打印葉子節點
-func (t *ModifiedMerklePatriciaTree) printLeafNode(node *MPTNode, currentPath []byte) {
+// printLeafNodeImproved 改進的葉子節點打印
+func (t *ModifiedMerklePatriciaTree) printLeafNodeImproved(node *MPTNode, indent string, currentPath []byte) {
 	fullPath := append(currentPath, node.Path...)
-
-	// 將十六進制路徑轉換為可讀字符串
 	key := hexToKey(fullPath)
 
-	fmt.Printf("[LEAF] ")
-	fmt.Printf("path=%s ", formatHexPath(node.Path))
-	fmt.Printf("key='%s' ", string(key))
-	fmt.Printf("value='%s'", string(node.Value))
+	fmt.Printf("%s", indent)
+	fmt.Printf("🍃 LEAF")
 
-	if node.Hash != nil {
-		fmt.Printf(" hash=%s", node.Hash.Hex()[:10]+"...")
+	// 顯示路徑（如果有）
+	if len(node.Path) > 0 {
+		fmt.Printf(" [path: %s]", formatCompactHexPath(node.Path))
 	}
+
+	// 顯示完整的鍵和值
+	fmt.Printf(" → '%s' = '%s'", string(key), string(node.Value))
+
+	// 顯示哈希
+	if node.Hash != nil {
+		fmt.Printf(" %s", shortHash(node))
+	}
+
+	// 顯示狀態
 	if node.Dirty {
-		fmt.Printf(" *dirty*")
+		fmt.Printf(" 🔴")
 	}
 	fmt.Println()
 }
 
-// printExtensionNode 打印擴展節點
-func (t *ModifiedMerklePatriciaTree) printExtensionNode(node *MPTNode, prefix string, currentPath []byte) {
+// printExtensionNodeImproved 改進的擴展節點打印
+func (t *ModifiedMerklePatriciaTree) printExtensionNodeImproved(node *MPTNode, indent string, currentPath []byte, depth int) {
 	fullPath := append(currentPath, node.Path...)
 
-	fmt.Printf("[EXTENSION] ")
-	fmt.Printf("path=%s ", formatHexPath(node.Path))
+	fmt.Printf("%s", indent)
+	fmt.Printf("📐 EXTENSION [path: %s]", formatCompactHexPath(node.Path))
 
+	// 顯示哈希
 	if node.Hash != nil {
-		fmt.Printf("hash=%s ", node.Hash.Hex()[:10]+"...")
+		fmt.Printf(" %s", shortHash(node))
 	}
+
 	if node.Dirty {
-		fmt.Printf("*dirty*")
+		fmt.Printf(" 🔴")
 	}
 	fmt.Println()
 
-	// 打印子節點
+	// 打印子節點（Extension 只有一個子節點）
 	if node.Children[0] != nil {
-		t.printNode(node.Children[0], prefix, true, fullPath)
+		newIndent := indent + "    "
+		t.printNodeImproved(node.Children[0], newIndent, fullPath, depth+1)
 	}
 }
 
-// printBranchNode 打印分支節點
-func (t *ModifiedMerklePatriciaTree) printBranchNode(node *MPTNode, prefix string, currentPath []byte) {
-	fmt.Printf("[BRANCH]")
+// printBranchNodeImproved 改進的分支節點打印
+func (t *ModifiedMerklePatriciaTree) printBranchNodeImproved(node *MPTNode, indent string, currentPath []byte, depth int) {
+	fmt.Printf("%s", indent)
+	fmt.Printf("🌿 BRANCH")
 
+	// 顯示分支節點的值（如果有）
 	if node.Value != nil {
-		fmt.Printf(" value='%s'", string(node.Value))
+		key := hexToKey(currentPath)
+		fmt.Printf(" [value: '%s' = '%s']", string(key), string(node.Value))
 	}
 
+	// 顯示哈希
 	if node.Hash != nil {
-		fmt.Printf(" hash=%s", node.Hash.Hex()[:10]+"...")
+		fmt.Printf(" %s", shortHash(node))
 	}
+
 	if node.Dirty {
-		fmt.Printf(" *dirty*")
+		fmt.Printf(" 🔴")
 	}
-	fmt.Println()
 
 	// 計算非空子節點
 	var nonNilChildren []int
@@ -122,20 +127,84 @@ func (t *ModifiedMerklePatriciaTree) printBranchNode(node *MPTNode, prefix strin
 		}
 	}
 
-	// 打印所有非空子節點
-	for idx, i := range nonNilChildren {
-		isLastChild := idx == len(nonNilChildren)-1
-		newPath := append(currentPath, byte(i))
+	fmt.Printf(" (%d children)", len(nonNilChildren))
+	fmt.Println()
 
-		fmt.Print(prefix)
-		if isLastChild {
-			fmt.Printf("└─[%X]─", i)
-		} else {
-			fmt.Printf("├─[%X]─", i)
+	// 打印所有非空子節點
+	for _, i := range nonNilChildren {
+		newPath := append(currentPath, byte(i))
+		newIndent := indent + "    "
+
+		// 打印分支索引
+		fmt.Printf("%s[%X] → ", newIndent, i)
+
+		// 在同一行開始打印子節點
+		t.printNodeInline(node.Children[i], newIndent+"    ", newPath, depth+1)
+	}
+}
+
+// printNodeInline 內聯打印節點（用於分支的子節點）
+func (t *ModifiedMerklePatriciaTree) printNodeInline(node *MPTNode, indent string, currentPath []byte, depth int) {
+	if node == nil {
+		fmt.Println("nil")
+		return
+	}
+
+	switch node.NodeType {
+	case LEAF:
+		fullPath := append(currentPath, node.Path...)
+		key := hexToKey(fullPath)
+
+		fmt.Printf("🍃 LEAF")
+		if len(node.Path) > 0 {
+			fmt.Printf(" [+%s]", formatCompactHexPath(node.Path))
+		}
+		fmt.Printf(" → '%s' = '%s'", string(key), string(node.Value))
+		if node.Hash != nil {
+			fmt.Printf(" %s", shortHash(node))
+		}
+		if node.Dirty {
+			fmt.Printf(" 🔴")
+		}
+		fmt.Println()
+
+	case EXTENSION:
+		fmt.Printf("📐 EXTENSION [+%s]", formatCompactHexPath(node.Path))
+		if node.Hash != nil {
+			fmt.Printf(" %s", shortHash(node))
+		}
+		if node.Dirty {
+			fmt.Printf(" 🔴")
+		}
+		fmt.Println()
+
+		// Extension 的子節點需要換行打印
+		if node.Children[0] != nil {
+			fullPath := append(currentPath, node.Path...)
+			t.printNodeImproved(node.Children[0], indent, fullPath, depth+1)
 		}
 
-		t.printNode(node.Children[i], prefix, isLastChild, newPath)
+	case BRANCH:
+		// Branch 節點需要換行打印
+		fmt.Println()
+		t.printBranchNodeImproved(node, indent, currentPath, depth)
+
+	default:
+		fmt.Println("[UNKNOWN]")
 	}
+}
+
+// formatCompactHexPath 更緊湊的十六進制路徑格式化
+func formatCompactHexPath(path []byte) string {
+	if len(path) == 0 {
+		return "∅"
+	}
+
+	result := ""
+	for _, b := range path {
+		result += fmt.Sprintf("%x", b)
+	}
+	return result
 }
 
 // ========== Helper Functions ==========
@@ -242,16 +311,16 @@ func (t *ModifiedMerklePatriciaTree) collectStats(node *MPTNode, depth int) *MPT
 }
 
 // mergeStats 合併統計信息
-func (t *ModifiedMerklePatriciaTree) mergeStats(stats, childStats *MPTStats) {
-	stats.totalNodes += childStats.totalNodes
-	stats.leafNodes += childStats.leafNodes
-	stats.extensionNodes += childStats.extensionNodes
-	stats.branchNodes += childStats.branchNodes
-	stats.totalValues += childStats.totalValues
-	stats.dirtyNodes += childStats.dirtyNodes
+func (t *ModifiedMerklePatriciaTree) mergeStats(target, source *MPTStats) {
+	target.totalNodes += source.totalNodes
+	target.leafNodes += source.leafNodes
+	target.extensionNodes += source.extensionNodes
+	target.branchNodes += source.branchNodes
+	target.totalValues += source.totalValues
+	target.dirtyNodes += source.dirtyNodes
 
-	if childStats.maxDepth > stats.maxDepth {
-		stats.maxDepth = childStats.maxDepth
+	if source.maxDepth > target.maxDepth {
+		target.maxDepth = source.maxDepth
 	}
 }
 
@@ -268,13 +337,14 @@ func (t *ModifiedMerklePatriciaTree) PrintAllKeys() {
 
 	pairs := t.collectAllPairs(t.root, []byte{})
 
-	// 排序鍵以便更好地顯示
+	// 按鍵排序
 	sort.Slice(pairs, func(i, j int) bool {
 		return string(pairs[i].key) < string(pairs[j].key)
 	})
 
+	// 打印所有鍵值對
 	for i, pair := range pairs {
-		fmt.Printf("  %3d. key='%s' => value='%s'\n", i+1, string(pair.key), string(pair.value))
+		fmt.Printf("  %d. key='%s' => value='%s'\n", i+1, string(pair.key), string(pair.value))
 	}
 	fmt.Printf("\n  Total: %d entries\n", len(pairs))
 }
@@ -362,4 +432,24 @@ func (t *ModifiedMerklePatriciaTree) countValues(node *MPTNode) int {
 func (t *ModifiedMerklePatriciaTree) Clear() {
 	t.root = nil
 	t.db = make(map[common.Hash][]byte)
+}
+
+// shortHash 返回簡短的哈希表示
+func shortHash(node *MPTNode) string {
+	if node == nil || node.Hash == nil {
+		return "<nil>"
+	}
+
+	hashBytes := node.Hash.Bytes()
+	if len(hashBytes) == 0 {
+		return "<empty>"
+	}
+
+	hashStr := fmt.Sprintf("%x", hashBytes)
+
+	if len(hashStr) <= 10 {
+		return "0x" + hashStr
+	}
+
+	return fmt.Sprintf("<HASH: 0x%s...%s>", hashStr[:4], hashStr[len(hashStr)-4:])
 }

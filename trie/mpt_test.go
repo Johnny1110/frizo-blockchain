@@ -843,3 +843,23 @@ func TestHashCalculation(t *testing.T) {
 
 	fmt.Println("last hash root:", root3)
 }
+
+func TestPrintTreeComplex(t *testing.T) {
+	mpt := NewMPT()
+
+	testData := map[string]string{
+		"cat":   "animal",
+		"car":   "vehicle",
+		"card":  "payment",
+		"care":  "emotion",
+		"dog":   "animal",
+		"dodge": "action",
+		"door":  "entrance",
+	}
+
+	for key, value := range testData {
+		_ = mpt.Put([]byte(key), []byte(value))
+	}
+
+	mpt.PrintTree()
+}

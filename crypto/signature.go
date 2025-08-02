@@ -122,7 +122,9 @@ func Ecrecover(message []byte, signature Signature) (*ecdsa.PublicKey, error) {
 
 	messageHash := crypto.Keccak256(message)
 
-	// recover
+	// recover (如果 messageHash 被偷偷修改，還是可以回傳 publicKey，不過該 public key 並不是原本交易發起者的，而是一個隨機公鑰)
+	// 假交易紀錄恢復出來的公鑰如果湊巧真的有餘額，還有一到工序可以作為驗證的最後一關，就是檢查交易的 nonce
+	// account 每發動一筆交易，都會使 account.nonce 遞增，可以在 block.go 中的 applyTxn 階段檢查 account.nonce == txn.nonce
 	publicKey, err := crypto.SigToPub(messageHash, signBytes)
 	if err != nil {
 		log.Warn("[crypto][Ecrecover] failed", err)

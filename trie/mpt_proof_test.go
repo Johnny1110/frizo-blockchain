@@ -12,6 +12,12 @@ func Test_Generate_MPTProof(t *testing.T) {
 		[]byte("aaa"),
 		[]byte("aab"),
 		[]byte("aac"),
+		[]byte("aaaa"),
+		[]byte("aaab"),
+		[]byte("aaac"),
+
+		[]byte("aba"),
+		[]byte("abb"),
 		[]byte("abc"),
 	}
 

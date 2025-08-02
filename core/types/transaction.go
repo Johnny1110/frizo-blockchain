@@ -14,6 +14,8 @@ import (
 // Transaction represent 1 txn in 1 block
 // Each Transaction is 1 value transfer or 1 contract call
 type Transaction struct {
+	enableCache bool
+
 	// txn basic data
 	data txdata
 
@@ -83,7 +85,7 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		Time:         time.Now(),
 	}
 
-	return &Transaction{data: d}
+	return &Transaction{data: d, enableCache: common.TxnCacheSwitch}
 }
 
 // NewContractCreation create a new contract creation txn
@@ -111,9 +113,9 @@ func (tx *Transaction) From() (common.Address, error) {
 // - for txn's unique ID, build merkle tree and query index
 func (tx *Transaction) Hash() common.Hash {
 	// load from cache
-	//if hash := tx.hash.Load(); hash != nil {
-	//	return hash.(common.Hash)
-	//}
+	if hash := tx.hash.Load(); tx.enableCache && hash != nil {
+		return hash.(common.Hash)
+	}
 
 	// include all tx data
 	rawData := []interface{}{
@@ -180,9 +182,9 @@ func (tx *Transaction) VerifySignature() bool {
 
 // Sender return txn sender address by sign verify
 func (tx *Transaction) Sender() (common.Address, error) {
-	//if from := tx.from.Load(); from != nil {
-	//	return from.(common.Address), nil
-	//}
+	if from := tx.from.Load(); tx.enableCache && from != nil {
+		return from.(common.Address), nil
+	}
 
 	if !tx.data.signature.Validate() {
 		log.Warn("[types][Sender] failed to perform signature Validate")
@@ -225,7 +227,7 @@ func (tx *Transaction) IsContractCreation() bool {
 
 // Size return txn size（for restrict block size）
 func (tx *Transaction) Size() uint64 {
-	if size := tx.size.Load(); size != nil {
+	if size := tx.size.Load(); tx.enableCache && size != nil {
 		return size.(uint64)
 	}
 

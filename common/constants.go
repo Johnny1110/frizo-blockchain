@@ -88,3 +88,10 @@ var (
 	// Ether is 10^18 Wei (1 FRZ = 10^18 Wei)
 	Ether = big.NewInt(1e18)
 )
+
+// cache control
+var (
+	// Block data cache
+	BlockCacheSwitch = false
+	TxnCacheSwitch   = false
+)

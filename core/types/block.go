@@ -50,6 +50,7 @@ func (s Transactions) GetRlp(i int) ([]byte, error) {
 // - light-weight client only need block header (merkle root)
 // - BlockHeader contains all potential data for verify txn
 type Block struct {
+	enableCache  bool
 	header       *Header
 	transactions Transactions
 	receipts     Receipts
@@ -103,7 +104,7 @@ func NewHeader(parentHash common.Hash, number *big.Int, timestamp uint64,
 
 // NewBlock constructor for block
 func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
-	b := &Block{header: CopyHeader(header)}
+	b := &Block{header: CopyHeader(header), enableCache: common.BlockCacheSwitch}
 
 	// Txn tree
 	if len(txs) > 0 {
@@ -124,7 +125,7 @@ func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 
 // NewBlockWithHeader create block only with blocker header
 func NewBlockWithHeader(header *Header) *Block {
-	return &Block{header: CopyHeader(header)}
+	return &Block{header: CopyHeader(header), enableCache: common.BlockCacheSwitch}
 }
 
 // CopyHeader blocker header deep copy
@@ -167,7 +168,7 @@ func (b *Block) calculateReceiptHash() common.Hash {
 // Hash return block's hash (header's hash)
 // block hash = block header hash
 func (b *Block) Hash() common.Hash {
-	if hash := b.hash.Load(); hash != nil {
+	if hash := b.hash.Load(); b.enableCache && hash != nil {
 		return hash.(common.Hash)
 	}
 
@@ -216,7 +217,7 @@ func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Ext
 
 // Size return block size
 func (b *Block) Size() uint64 {
-	if size := b.size.Load(); size != nil {
+	if size := b.size.Load(); b.enableCache && size != nil {
 		return size.(uint64)
 	}
 

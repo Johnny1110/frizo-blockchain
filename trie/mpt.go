@@ -84,9 +84,6 @@ func NewMPT() *ModifiedMerklePatriciaTree {
 // encoding rule:
 // - first nibble represent node type: [00=extension even, 01=extension odd, 10=leaf even, 11=leaf odd]
 func HexToCompact(hexPath []byte, isLeaf bool) []byte {
-	if len(hexPath) == 0 {
-		return nil
-	}
 	// terminator (leaf is 1, extension is 0)
 	terminator := byte(0) // default is extension (0000 0000)
 	if isLeaf {

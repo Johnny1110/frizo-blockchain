@@ -104,5 +104,4 @@ func Test_Verify_MPTProof(t *testing.T) {
 	ok, err = VerifyMPTProof(mpt.GetRoot(), []byte("aaac"), proof)
 	assert.Nil(t, err)
 	assert.True(t, ok)
-
 }

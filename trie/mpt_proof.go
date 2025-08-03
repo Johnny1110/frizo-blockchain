@@ -109,8 +109,6 @@ func VerifyMPTProof(rootHash common.Hash, key []byte, proof *MPTProof) (bool, er
 
 	nibblesPath := KeyToHex(key)
 
-	fmt.Println("@@ 初始化 nibble path: ", nibblesPath)
-
 	// recursive call verify func
 	computedVal, err := verifyMPTProofPath(nibblesPath, proof.Proof, 0)
 	if err != nil {
@@ -137,8 +135,6 @@ func verifyMPTProofPath(path []byte, proof [][]byte, proofIdx int) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode proof node at index %d: %w", proofIdx, err)
 	}
-	fmt.Println("@@ 進入 verify path: ", path, " index:", proofIdx, " nodeType:", proofNode.NodeType)
-	// 最後一個怎麼是 EXTENSION 不是 LEAF 呢？
 
 	switch proofNode.NodeType {
 	case LEAF:
@@ -202,15 +198,12 @@ func decodeProofNode(proofData []byte) (*MPTProofNode, error) {
 		return nil, fmt.Errorf("rlp decode failed, err %v", err)
 	}
 
-	fmt.Println("@@ Decoded length: ", len(decoded), " proofData:", common.Bytes2Hex(proofData))
-
 	switch len(decoded) {
 	case leafAndExtLength:
 		compactPath, ok := decoded[0].([]byte)
 		if !ok {
 			return nil, errors.New("decode proof node failed, decode leaf or ext failed, compactPath error")
 		}
-		fmt.Println("@@ 很重要的 compact:", compactPath)
 		hexPath, isLeaf := CompactToHex(compactPath)
 
 		if isLeaf {

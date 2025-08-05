@@ -135,6 +135,7 @@ func verifyMPTProofPath(path []byte, proof [][]byte, proofIdx int) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode proof node at index %d: %w", proofIdx, err)
 	}
+	// 最後一個怎麼是 EXTENSION 不是 LEAF 呢？
 
 	switch proofNode.NodeType {
 	case LEAF:
@@ -204,6 +205,7 @@ func decodeProofNode(proofData []byte) (*MPTProofNode, error) {
 		if !ok {
 			return nil, errors.New("decode proof node failed, decode leaf or ext failed, compactPath error")
 		}
+
 		hexPath, isLeaf := CompactToHex(compactPath)
 
 		if isLeaf {

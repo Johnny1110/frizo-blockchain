@@ -884,8 +884,8 @@ func (t *ModifiedMerklePatriciaTree) nodeRef(node *MPTNode) []byte {
 	// encode node.
 	encoded := t.encodeNode(node)
 
-	// ethereum std rule: < 32 bytes just return node encode
-	if len(encoded) < 32 {
+	// ethereum std rule: <= 32 bytes just return node encode
+	if len(encoded) <= 32 {
 		return encoded
 	}
 

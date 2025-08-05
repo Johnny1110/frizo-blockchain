@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
-	"frizo-blockchain/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -102,8 +101,14 @@ func VerifyMPTProof(rootHash common.Hash, key []byte, proof *MPTProof) (bool, er
 		return false, errors.New("invalid proof")
 	}
 
+	var proofRoot common.Hash
 	// Verify Root Hash
-	if rootHash != crypto.Keccak256Hash(proof.Proof[0]) {
+	if len(proof.Proof[0]) <= common.HashLength {
+		proofRoot = common.BytesToHash(proof.Proof[0])
+	} else {
+		proofRoot = common.Keccak256Hash(proof.Proof[0])
+	}
+	if rootHash != proofRoot {
 		return false, errors.New("invalid proof, root hash mismatch")
 	}
 
@@ -135,7 +140,6 @@ func verifyMPTProofPath(path []byte, proof [][]byte, proofIdx int) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode proof node at index %d: %w", proofIdx, err)
 	}
-	// 最後一個怎麼是 EXTENSION 不是 LEAF 呢？
 
 	switch proofNode.NodeType {
 	case LEAF:
@@ -237,7 +241,13 @@ func decodeProofNode(proofData []byte) (*MPTProofNode, error) {
 		// First 16 elements are child references
 		for i := 0; i < 16; i++ {
 			if childRef, ok := decoded[i].([]byte); ok && childRef != nil && len(childRef) > 0 {
-				node.Children[i] = common.Keccak256Hash(childRef)
+				if len(childRef) <= 32 {
+					// ethereum std rule: < 32 bytes just return node encode
+					node.Children[i] = common.BytesToHash(childRef)
+				} else {
+					// ethereum std rule: > 32 bytes, return hash node encode
+					node.Children[i] = common.Keccak256Hash(childRef)
+				}
 			}
 		}
 

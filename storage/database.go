@@ -14,6 +14,43 @@ type Database interface {
 	LoadBlock(hash common.Hash) (*types.Block, error)
 	StoreBlock(block *types.Block) error
 	StoreState(state *state.SimpleStateDB)
+
+	// ----------------------------------------------------
+
+	// Node retrieves a trie node by hash
+	Node(hash common.Hash) ([]byte, error)
+	// Put store a trie node by hash
+	Put(hash common.Hash, blob []byte) error
+	// Delete delete a trie node by hash
+	Delete(hash common.Hash) error
+	// Has checks if a trie node exists
+	Has(hash common.Hash) bool
+	// NewBatch create a batch process for atomic update
+	NewBatch() Batch
+	// Close close db
+	Close()
+	// Compact trigger db compact
+	Compact(start []byte, limit []byte) error
+}
+
+// Batch is a write-only batch that commits changes atomically
+type Batch interface {
+	Put(key []byte, value []byte) error
+	Delete(key []byte) error
+	// ValueSize return size of pending writes
+	ValueSize() int
+	// Write commits all pending operations atomically
+	Write() error
+	// Reset clears the batch
+	Reset()
+	// Replay replays the batch contents to another batch
+	Replay(w KeyValueWriter) error
+}
+
+// KeyValueWriter is a minimal interface for batch replay
+type KeyValueWriter interface {
+	Put(key []byte, value []byte) error
+	Delete(key []byte) error
 }
 
 type MockDatabase struct {

@@ -25,7 +25,7 @@
 
 <br>
 
-產生區塊的幾個重要 main flow:
+節點在產生區塊時的幾個重要 main flow:
 
 1. 在交易池中蒐集 PENDING 狀態的交易
 2. 執行被選取的交易 (使用當前節點上的 stateDB 做交易試算，並不是真的動到實際帳戶)
@@ -44,19 +44,20 @@
 
 <br>
 
-假如產塊的節點偽造了交易細節，比如把某一筆交易的 transfer amount 從 10000 調整成 10．其他收到廣播的節點是不是應該要能識別出來交易被偽早呢？
+假如產塊的節點偽造了交易細節，比如把某一筆交易的 transfer amount 從 10000 調整成 10．其他收到廣播的節點是不是應該要能識別出來交易被偽造呢？
 
 <br>
 
 總的來說，透過以太坊的交易驗證設計，最終是可以驗證得到交易被竄改的事實，但是過程並不單純只是靠驗證交易簽名與交易資訊．
 
 <br>
+<br>
 
 ## 關於 Ecrecover
 
 <br>
 
-先看一下交易是如何被簽名的：
+首先要看一下一筆轉帳交易是如何被簽名的：
 
 ```go
 // SignTx use private to sign txn
@@ -86,7 +87,7 @@ func (tx *Transaction) SignTx(privateKey *ecdsa.PrivateKey) error {
 func (tx *Transaction) signingHash() common.Hash {
 	rawData := []interface{}{
 		tx.data.AccountNonce,
-		tx.data.Recipient,
+		tx.data.Recipient, // ETH receiver address
 		tx.data.Amount,
 		tx.data.GasLimit,
 		tx.data.GasPrice,
@@ -103,22 +104,22 @@ func (tx *Transaction) signingHash() common.Hash {
 
 <br>
 
-簽署的資料 source 是交易的 account nonce, recipient, amount, gas limit ...
+簽署的資料 source 是交易的 account nonce, recipient(address), amount, gas limit ...
 
-用直覺來看，如果在簽名完成後，我去偷偷修改 tx.data.Amount 的值，會導致驗證階段產出的 hash data 發生變化．進而簽名驗證失敗．
+用直覺思考的話，如果在簽名完成後，我去偷偷修改 tx.data.Amount 的值，會導致驗證階段產出的 hash data 發生變化．進而產生簽名驗證失敗的結果．
 
 <br>
 
-__實際測試驗證簽名時，卻不完全是這樣__，在我偽造 amount 進行簽名驗證時，`func Ecrecover(RSV, txHashData) (publicKey, error)` 並沒有回傳錯誤，而是回給我一個
-全新的 publicKey。其對應的地址也是完全沒見過的新地址，這出乎我的意料．
+__實際測試驗證簽名時，卻不完全是這樣__．在我偽造 amount 進行簽名驗證時，`func Ecrecover(RSV, txHashData) (publicKey, error)` 並沒有回傳錯誤，__而是回給我一個
+全新的 publicKey。其對應的地址也是完全沒見過的新地址__，這完全出乎我的意料．
 
 這樣一來雖然無法還原出正確地址進行轉帳操作，但是如果還原出的這個新地址是其他人的帳戶怎麼辦？難到可以亂造假帳使鏈上帳戶資金被亂動嗎？
 
 <br>
 
-帶著這個疑惑，我又回去查閱了以太坊的帳戶設計文獻，發現 account nonce 這個欄位可以解決這一問題．
+帶著這個疑惑，我又回去查閱了以太坊的帳戶設計文獻，發現 `Ecrecover()` 確實會有這樣的問題產生，但是相應的有 account nonce 這個欄位可以解決這一問題．
 
-account nonce 可以理解為隨著 account 每一次帳戶異動都會自動 + 1 的遞增 id．當 account 擁有者簽署一筆交易時，必須在交易中輸入當前 account 的 nonce 是多少．
+account nonce 可以理解為隨著 account __每一次帳戶異動都會自動 + 1 的遞增 id__．當 account 擁有者簽署一筆交易時，必須在交易中輸入當前 account 的 nonce 是多少．
 
 比如小王有一個以太坊 account，當前 nonce 是 20．小王簽署了一個轉帳交易內容：
 
@@ -138,11 +139,15 @@ account nonce 可以理解為隨著 account 每一次帳戶異動都會自動 + 
 <br>
 
 假如有人想要偽造小王的這筆交易金額，修改成 `amount = 10`。這樣節點在進行 `Ecrecover` 時會還原出一個完全不相干的帳戶，這邊舉例為還原出小紅的帳戶．
-如果此時不檢查小紅的 account nonce 直接執行轉帳交易，會使小紅莫名其妙被轉走 10 wei 的餘額．如果此時多檢查一次 account state 中小紅帳戶的 account nonce 則可以保護小紅的帳號免於被盜用．
+如果此時不檢查小紅的 account nonce 直接執行轉帳交易，會使小紅莫名其妙被轉走 10 wei 的餘額．如果此時多檢查一次 account state 中小紅帳戶的 account nonce 則可以保護小紅的帳號免於被盜用(除非偽造交易的人可以完完全全算得剛好，這個機率低到可以忽略不計)．
 
 <br>
+<br>
 
-所以總結起來，以太坊在驗證區塊中的交易時並執行時，會走以下流程：
+## 總結
+
+
+以太坊在驗證區塊中的交易時並執行時，會走以下流程：
 
 1. 先會驗證區塊的所有交易資料產生的 txn merkle root(本文未提到)．
 
@@ -155,5 +160,9 @@ account nonce 可以理解為隨著 account 每一次帳戶異動都會自動 + 
 5. 執行 `transfer()` 轉帳
 
 6. 更新 blockchain
+
+<br>
+
+`Ecrecover()` 並不能直接保證交易的合法性，必須同時用 account nonce 加上 account balance 檢查，才能完全實現安全的交易驗證功能．
 
 

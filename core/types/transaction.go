@@ -162,6 +162,7 @@ func (tx *Transaction) signingHash() common.Hash {
 		tx.data.AccountNonce,
 		tx.data.Recipient,
 		tx.data.Amount,
+		tx.To(),
 		tx.data.GasLimit,
 		tx.data.GasPrice,
 		tx.data.Payload,

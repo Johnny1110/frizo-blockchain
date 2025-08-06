@@ -65,15 +65,24 @@ type MPTNode struct {
 // ModifiedMerklePatriciaTree MPT main struct
 type ModifiedMerklePatriciaTree struct {
 	root     *MPTNode
-	db       map[common.Hash][]byte
+	db       MPTDatabase
 	hashFunc func([]byte) common.Hash
 }
 
-// NewMPT create new ModifiedMerklePatriciaTree
+// NewMPT create new ModifiedMerklePatriciaTree with in-memory DB
 func NewMPT() *ModifiedMerklePatriciaTree {
 	return &ModifiedMerklePatriciaTree{
 		root:     nil,
-		db:       make(map[common.Hash][]byte),
+		db:       NewInMemoryMPTDatabase(), // default with in-memory
+		hashFunc: defaultHashFunc,
+	}
+}
+
+// NewMPTWithDB create new ModifiedMerklePatriciaTree with input DB
+func NewMPTWithDB(db MPTDatabase) *ModifiedMerklePatriciaTree {
+	return &ModifiedMerklePatriciaTree{
+		root:     nil,
+		db:       db,
 		hashFunc: defaultHashFunc,
 	}
 }
@@ -238,12 +247,6 @@ func (t *ModifiedMerklePatriciaTree) Hash(node *MPTNode) common.Hash {
 
 		node.Hash = &hash
 		node.Dirty = false
-
-		// encoded grater than 32 need to be store in levelDB (Ethereum std rule)
-		if len(encoded) > 32 {
-			t.db[hash] = encoded
-		}
-
 		return hash
 	}
 }
@@ -1001,16 +1004,34 @@ func (t *ModifiedMerklePatriciaTree) decodeBranch(decoded []interface{}) (*MPTNo
 	return branch, nil
 }
 
+// saveNode save node to db
+func (t *ModifiedMerklePatriciaTree) saveNode(node *MPTNode) error {
+	if node == nil || !node.Dirty {
+		return nil
+	}
+
+	encoded := t.encodeNode(node)
+	// encoded grater than 32 need to be store in levelDB (Ethereum std rule)
+	if len(encoded) > common.HashLength {
+		hash := t.Hash(node)
+		return t.db.Put(hash.Bytes(), node.Value)
+	}
+	return nil
+}
+
 // loadNode load node from db
 func (t *ModifiedMerklePatriciaTree) loadNode(hash common.Hash) (*MPTNode, error) {
+	if t.db == nil {
+		return nil, errors.New("trie db not initialized")
+	}
 	if hash == (common.Hash{}) {
 		return nil, nil
 	}
 
 	// load data form db
-	data, exists := t.db[hash]
-	if !exists {
-		return nil, fmt.Errorf("node not found: %s", hash.Hex())
+	data, err := t.db.Get(hash.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("node not found: %s", hash)
 	}
 
 	// decode node

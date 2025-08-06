@@ -15,7 +15,7 @@ import (
 // Each Transaction is 1 value transfer or 1 contract call
 type Transaction struct {
 	enableCache bool
-
+	chainId     *big.Int
 	// txn basic data
 	data txdata
 
@@ -85,7 +85,7 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		Time:         time.Now(),
 	}
 
-	return &Transaction{data: d, enableCache: common.TxnCacheSwitch}
+	return &Transaction{chainId: big.NewInt(common.ChainID), data: d, enableCache: common.TxnCacheSwitch}
 }
 
 // NewContractCreation create a new contract creation txn
@@ -105,6 +105,9 @@ func (tx *Transaction) Data() []byte        { return tx.data.Payload }
 func (tx *Transaction) Time() time.Time     { return tx.data.Time }
 func (tx *Transaction) From() (common.Address, error) {
 	return tx.Sender()
+}
+func (tx *Transaction) ChainID() *big.Int {
+	return new(big.Int).Set(tx.chainId)
 }
 
 // ========= Transaction Func =========
@@ -159,6 +162,7 @@ func (tx *Transaction) SignTx(privateKey *ecdsa.PrivateKey) error {
 // signingHash return tx_hash (AccountNonce + Recipient + Amount + GasLimit + Payload)
 func (tx *Transaction) signingHash() common.Hash {
 	rawData := []interface{}{
+		tx.chainId.Int64(),
 		tx.data.AccountNonce,
 		tx.data.Recipient,
 		tx.data.Amount,

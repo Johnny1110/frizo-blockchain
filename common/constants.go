@@ -4,6 +4,7 @@ import "math/big"
 
 // Blockchain Constants
 const (
+	ChainID = 10001
 	// Block
 	BlockMaxGasLimit    = 8000000 // Block Gas Limit
 	BlockMinGasLimit    = 5000    // min gas fee for 1 block

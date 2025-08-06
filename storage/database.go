@@ -1,66 +1,95 @@
 package storage
 
 import (
-	"frizo-blockchain/common"
-	"frizo-blockchain/core/state"
-	"frizo-blockchain/core/types"
-	"math/big"
-	"sync"
+	"fmt"
+	"frizo-blockchain/storage/leveldb"
+	"path/filepath"
 )
 
+type DatabaseConfig struct {
+	DataDir   string // category
+	Cache     int    // cache size
+	Handles   int    // file handles (已打開文件數)
+	Namespace string
+}
+
+type ChainDatabase struct {
+	blockDB Database // block, txn, receipt
+	stateDB Database // state,mpt-node, contract-code
+	indexDB Database // index
+
+	config *DatabaseConfig
+}
+
 type Database interface {
-	LoadState(root common.Hash) *state.SimpleStateDB
-	LoadBlockHash(number *big.Int) common.Hash
-	LoadBlock(hash common.Hash) (*types.Block, error)
-	StoreBlock(block *types.Block) error
-	StoreState(state *state.SimpleStateDB)
+	Close() error
+	NewBatch() Batch
+	Get(key []byte) ([]byte, error)
+	Put(key []byte, value []byte) error
+	Delete(key []byte) error
+	Has(key []byte) (bool, error)
 }
 
-type MockDatabase struct {
-	mu sync.RWMutex
-
-	stateMap     map[common.Hash]*state.SimpleStateDB
-	blockHashMap map[*big.Int]common.Hash
-	blockMap     map[common.Hash]*types.Block
+type Batch interface {
+	Put(key []byte, data []byte)
+	Write() error
+	Delete(key []byte)
 }
 
-func NewMockDatabase() Database {
-	return &MockDatabase{
-		stateMap:     make(map[common.Hash]*state.SimpleStateDB),
-		blockHashMap: make(map[*big.Int]common.Hash),
-		blockMap:     make(map[common.Hash]*types.Block),
+// NewChainDatabase create new chain database
+func NewChainDatabase(config *DatabaseConfig) (*ChainDatabase, error) {
+	// create category
+	blockDir := filepath.Join(config.DataDir, "block")
+	stateDir := filepath.Join(config.DataDir, "state")
+	indexDir := filepath.Join(config.DataDir, "index")
+
+	// cache alloc
+	blockCacheSize := config.Cache * 40 / 100 // 40%
+	stateCacheSize := config.Cache * 50 / 100 // 50%
+	indexCacheSize := config.Cache * 10 / 100 // 10%
+
+	// create block db
+	blockDB, err := leveldb.NewLevelDB(blockDir, blockCacheSize, config.Handles/3)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create block database: %v", err)
 	}
+
+	stateDB, err := leveldb.NewLevelDB(stateDir, stateCacheSize, config.Handles/3)
+	if err != nil {
+		_ = blockDB.Close()
+		return nil, fmt.Errorf("failed to create state database: %v", err)
+	}
+
+	indexDB, err := leveldb.NewLevelDB(indexDir, indexCacheSize, config.Handles/3)
+	if err != nil {
+		_ = blockDB.Close()
+		_ = stateDB.Close()
+		return nil, fmt.Errorf("failed to create index database: %v", err)
+	}
+
+	return &ChainDatabase{
+		blockDB: blockDB,
+		stateDB: stateDB,
+		indexDB: indexDB,
+		config:  config,
+	}, nil
 }
 
-func (m *MockDatabase) StoreState(state *state.SimpleStateDB) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	m.stateMap[state.ComputeRoot()] = state
-}
+func (db *ChainDatabase) Close() error {
+	var errs []error
 
-func (m *MockDatabase) LoadState(root common.Hash) *state.SimpleStateDB {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.stateMap[root]
-}
+	if err := db.blockDB.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := db.stateDB.Close(); err != nil {
+		errs = append(errs, err)
+	}
+	if err := db.indexDB.Close(); err != nil {
+		errs = append(errs, err)
+	}
 
-func (m *MockDatabase) LoadBlockHash(number *big.Int) common.Hash {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.blockHashMap[number]
-}
-
-func (m *MockDatabase) LoadBlock(hash common.Hash) (*types.Block, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.blockMap[hash], nil
-}
-
-func (m *MockDatabase) StoreBlock(block *types.Block) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	blockNumber := block.Number()
-	m.blockHashMap[blockNumber] = block.Hash()
-	m.blockMap[block.Hash()] = block
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to close databases: %v", errs)
+	}
 	return nil
 }

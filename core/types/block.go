@@ -307,3 +307,11 @@ func (b Block) GetReceiptTree() *trie.MerkleTree {
 	}
 	return trie.NewMerkleTree(receiptHashes, nil) // using default hashFunc (nil)
 }
+
+func (b *Block) NumberU64() uint64 {
+	return b.header.Number.Uint64()
+}
+
+func (b *Block) Body() interface{} {
+	return b.transactions
+}

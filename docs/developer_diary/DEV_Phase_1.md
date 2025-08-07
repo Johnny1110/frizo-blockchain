@@ -260,7 +260,11 @@ type StateDB interface {
 
 <br>
 
-2. 交易池實現
+2. 完善 blockchain.go 相關產塊功能
+
+<br>
+
+3. 交易池實現
 ```go
 3. type TxPool struct {
     pending map[Address]TxList  // 待打包交易

@@ -29,8 +29,8 @@
 
 * Merkle Tree: /trie/merkle.go
 * Modified Merkle Patricia Tree (MPT):
-    * /trie/mpt.go (樹的主體)
-    * /trie/mpt_proof.go (證明相關功能)
+    * /trie/mpt.go (樹的主體，已實現 rlp 編碼)
+    * /trie/mpt_proof.go (證明相關功能，生成與驗證 proof 皆以完備)
     * /trie/mpt_tool.go (debug 工具)
 
 <br>
@@ -53,7 +53,7 @@ state block 等持久化相關功能
 
 ## 未來計劃
 
-### 一、MPT 完善計劃
+### 一、MPT 與 state 整合
 
 * core/simple_state 與實際 MPT 整合．變成完全體 state 管理，實現 snapshot. commit 與 revert 功能．
 
@@ -63,6 +63,7 @@ state block 等持久化相關功能
 ### 二、區塊鏈核心實現
 
 * 重構 core (blockchain 核心相關) 目標是達成 Phase-1 驗收標準的完成度(完整實現轉帳，節點共識並同步區塊)
+* 整合 block，state 與 storage 的功能，提供持久化儲存與恢復
 * 完成 txnPool 功能，目標是達成 Phase-1 驗收標準的完成度
 * 完成簽署交易 -> 入池 -> 收集交易 -> 打包交易生產區塊 -> 驗證區塊 -> 執行交易帳戶狀態轉化 -> 完成持久化  整套流程的整合測試
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
+	"frizo-blockchain/storage/interfaces"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -65,26 +66,37 @@ type MPTNode struct {
 // ModifiedMerklePatriciaTree MPT main struct
 type ModifiedMerklePatriciaTree struct {
 	root     *MPTNode
-	db       MPTDatabase
 	hashFunc func([]byte) common.Hash
+
+	dirtyNodes map[common.Hash][]byte
 }
 
 // NewMPT create new ModifiedMerklePatriciaTree with in-memory DB
 func NewMPT() *ModifiedMerklePatriciaTree {
 	return &ModifiedMerklePatriciaTree{
-		root:     nil,
-		db:       NewInMemoryMPTDatabase(), // default with in-memory
-		hashFunc: defaultHashFunc,
+		root:       nil,
+		hashFunc:   defaultHashFunc,
+		dirtyNodes: make(map[common.Hash][]byte),
 	}
 }
 
 // NewMPTWithDB create new ModifiedMerklePatriciaTree with input DB
-func NewMPTWithDB(db MPTDatabase) *ModifiedMerklePatriciaTree {
-	return &ModifiedMerklePatriciaTree{
-		root:     nil,
-		db:       db,
-		hashFunc: defaultHashFunc,
+func NewMPTWithDB(stateDB interfaces.Database, rootHash common.Hash) (*ModifiedMerklePatriciaTree, error) {
+	mpt := &ModifiedMerklePatriciaTree{
+		root:       nil,
+		hashFunc:   defaultHashFunc,
+		dirtyNodes: make(map[common.Hash][]byte),
 	}
+	if rootHash != (common.Hash{}) {
+		// load node from db
+		rootNode, err := mpt.loadNode(stateDB, rootHash)
+		if err != nil {
+			return nil, errors.New("failed to create MPT with database - load node failed")
+		}
+		mpt.root = rootNode
+	}
+
+	return mpt, nil
 }
 
 // ========== Encoding func =============================================================================
@@ -244,6 +256,8 @@ func (t *ModifiedMerklePatriciaTree) Hash(node *MPTNode) common.Hash {
 		// RLP encoding
 		encoded := t.encodeNode(node)
 		hash := t.hashFunc(encoded)
+		// store into dirty nodes, hash -> encoded
+		t.dirtyNodes[hash] = encoded
 
 		node.Hash = &hash
 		node.Dirty = false
@@ -251,18 +265,16 @@ func (t *ModifiedMerklePatriciaTree) Hash(node *MPTNode) common.Hash {
 	}
 }
 
-func (t *ModifiedMerklePatriciaTree) Commit() (common.Hash, error) {
+// Commit return root & all dirty nodes
+func (t *ModifiedMerklePatriciaTree) Commit() (common.Hash, map[common.Hash][]byte, error) {
 	if t.root == nil {
-		return common.Hash{}, nil
+		return common.Hash{}, nil, nil
 	}
 
 	// calculate HASH
 	rootHash := t.GetRoot()
-
-	// store into levelDB
-	// TODO: impl
-
-	return rootHash, nil
+	// return root & dirty nodes.
+	return rootHash, t.dirtyNodes, nil
 }
 
 // ==================================================================================================================================
@@ -886,15 +898,7 @@ func (t *ModifiedMerklePatriciaTree) nodeRef(node *MPTNode) []byte {
 
 	// encode node.
 	encoded := t.encodeNode(node)
-
-	// ethereum std rule: <= 32 bytes just return node encode
-	if len(encoded) <= 32 {
-		return encoded
-	}
-
-	// ethereum std rule: > 32 bytes return HASH
-	hash := t.Hash(node)
-	return hash.Bytes()
+	return encoded
 }
 
 func (t *ModifiedMerklePatriciaTree) updateHashes(node *MPTNode) {
@@ -958,10 +962,10 @@ func (t *ModifiedMerklePatriciaTree) decodeLeafOrExtension(decoded []interface{}
 	}
 
 	hexPath, isLeaf := CompactToHex(pathData)
-
+	// second element is value or childRef
+	value, ok := decoded[1].([]byte)
 	if isLeaf {
-		// second element is value
-		value, ok := decoded[1].([]byte)
+
 		if !ok {
 			return nil, errors.New("invalid value in leaf node")
 		}
@@ -973,11 +977,19 @@ func (t *ModifiedMerklePatriciaTree) decodeLeafOrExtension(decoded []interface{}
 			Dirty:    false,
 		}, nil
 	} else { // EXTENSION node
+
+		// decode child[0]
+		node, err := t.decodeNode(value)
+		if err != nil {
+			return nil, err
+		}
+
 		return &MPTNode{
 			NodeType: EXTENSION,
 			Path:     hexPath,
 			Dirty:    false,
 			// children[0] using loadChild to load data later
+			Children: [16]*MPTNode{node},
 		}, nil
 	}
 }
@@ -1000,77 +1012,36 @@ func (t *ModifiedMerklePatriciaTree) decodeBranch(decoded []interface{}) (*MPTNo
 	}
 
 	// no.1 ~ no.16 is all children, will be restored by loadChild() later
+	for i := 0; i < 16; i++ {
+		if value, ok := decoded[i].([]byte); ok {
+			node, err := t.decodeNode(value)
+			if err != nil {
+				return nil, err
+			}
+			branch.Children[i] = node
+		}
+	}
 
 	return branch, nil
 }
 
-// saveNode save node to db
-func (t *ModifiedMerklePatriciaTree) saveNode(node *MPTNode) error {
-	if node == nil || !node.Dirty {
-		return nil
-	}
-
-	encoded := t.encodeNode(node)
-	// encoded grater than 32 need to be store in levelDB (Ethereum std rule)
-	if len(encoded) > common.HashLength {
-		hash := t.Hash(node)
-		return t.db.Put(hash.Bytes(), node.Value)
-	}
-	return nil
-}
-
 // loadNode load node from db
-func (t *ModifiedMerklePatriciaTree) loadNode(hash common.Hash) (*MPTNode, error) {
-	if t.db == nil {
-		return nil, errors.New("trie db not initialized")
-	}
+func (t *ModifiedMerklePatriciaTree) loadNode(stateDB interfaces.Database, hash common.Hash) (*MPTNode, error) {
 	if hash == (common.Hash{}) {
 		return nil, nil
 	}
 
-	// load data form db
-	data, err := t.db.Get(hash.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("node not found: %s", hash)
-	}
-
-	// decode node
-	node, err := t.decodeNode(data)
+	encoded, err := stateDB.Get(hash.Bytes())
 	if err != nil {
 		return nil, err
 	}
 
-	// set hash to node (load data is not dirty)
-	node.Hash = &hash
+	node, err := t.decodeNode(encoded)
+	if err != nil {
+		return nil, err
+	}
 
 	return node, nil
-}
-
-// resolveNode resolve node ref
-func (t *ModifiedMerklePatriciaTree) resolveNode(ref interface{}) (*MPTNode, error) {
-	if ref == nil {
-		return nil, nil
-	}
-
-	switch r := ref.(type) {
-	case []byte:
-		if len(r) == 0 {
-			return nil, nil
-		}
-
-		// HASH
-		if len(r) == common.HashLength {
-			// Hash ref, load from db
-			hash := common.BytesToHash(r)
-			return t.loadNode(hash)
-		} else {
-			// node decode directly
-			return t.decodeNode(r)
-		}
-
-	default:
-		return nil, fmt.Errorf("invalid node reference type: %T", ref)
-	}
 }
 
 func (n *MPTNode) getExtensionChild() *MPTNode {

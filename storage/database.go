@@ -2,7 +2,9 @@ package storage
 
 import (
 	"fmt"
+	"frizo-blockchain/storage/interfaces"
 	"frizo-blockchain/storage/leveldb"
+	"frizo-blockchain/storage/memory"
 	"path/filepath"
 )
 
@@ -14,30 +16,25 @@ type DatabaseConfig struct {
 }
 
 type ChainDatabase struct {
-	blockDB Database // block, txn, receipt
-	stateDB Database // state,mpt-node, contract-code
-	indexDB Database // index
+	blockDB interfaces.Database // block, txn, receipt
+	stateDB interfaces.Database // state,mpt-node, contract-code
+	indexDB interfaces.Database // index
 
 	config *DatabaseConfig
 }
 
-type Database interface {
-	Close() error
-	NewBatch() Batch
-	Get(key []byte) ([]byte, error)
-	Put(key []byte, value []byte) error
-	Delete(key []byte) error
-	Has(key []byte) (bool, error)
+func (cdb *ChainDatabase) BlockDB() interfaces.Database {
+	return cdb.blockDB
+}
+func (cdb *ChainDatabase) StateDB() interfaces.Database {
+	return cdb.stateDB
+}
+func (cdb *ChainDatabase) IndexDB() interfaces.Database {
+	return cdb.indexDB
 }
 
-type Batch interface {
-	Put(key []byte, data []byte)
-	Write() error
-	Delete(key []byte)
-}
-
-// NewChainDatabase create new chain database
-func NewChainDatabase(config *DatabaseConfig) (*ChainDatabase, error) {
+// NewChainDatabaseLevelDB create new chain database
+func NewChainDatabaseLevelDB(config *DatabaseConfig) (*ChainDatabase, error) {
 	// create category
 	blockDir := filepath.Join(config.DataDir, "block")
 	stateDir := filepath.Join(config.DataDir, "state")
@@ -71,6 +68,16 @@ func NewChainDatabase(config *DatabaseConfig) (*ChainDatabase, error) {
 		blockDB: blockDB,
 		stateDB: stateDB,
 		indexDB: indexDB,
+		config:  config,
+	}, nil
+}
+
+// NewChainDatabaseInMemory create new chain database
+func NewChainDatabaseInMemory(config *DatabaseConfig) (*ChainDatabase, error) {
+	return &ChainDatabase{
+		blockDB: memory.NewMemoryDatabase(),
+		stateDB: memory.NewMemoryDatabase(),
+		indexDB: memory.NewMemoryDatabase(),
 		config:  config,
 	}, nil
 }

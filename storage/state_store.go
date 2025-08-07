@@ -39,9 +39,17 @@ func (s *StateStore) ReadCode(codeHash common.Hash) ([]byte, error) {
 func (s *StateStore) CommitTrie(mpt *trie.ModifiedMerklePatriciaTree) (common.Hash, error) {
 	batch := s.db.stateDB.NewBatch()
 	// iterate all dirty node and put
-	root, nodes := trie.Commit()
+	root, nodes, err := mpt.Commit()
+
+	if err != nil {
+		return common.Hash{}, err
+	}
+
 	for hash, node := range nodes {
-		batch.Put(hash.Bytes(), node)
+		err := batch.Put(hash.Bytes(), node)
+		if err != nil {
+			return common.Hash{}, err
+		}
 	}
 
 	return root, batch.Write()

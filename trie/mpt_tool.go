@@ -430,7 +430,6 @@ func (t *ModifiedMerklePatriciaTree) countValues(node *MPTNode) int {
 // Clear removes all key-value pairs from the MPT
 func (t *ModifiedMerklePatriciaTree) Clear() {
 	t.root = nil
-	t.db = NewInMemoryMPTDatabase()
 }
 
 // shortHash 返回簡短的哈希表示

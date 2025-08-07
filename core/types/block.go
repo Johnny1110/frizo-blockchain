@@ -1,7 +1,6 @@
 package types
 
 import (
-	"errors"
 	"fmt"
 	"frizo-blockchain/common"
 	"frizo-blockchain/crypto"
@@ -17,33 +16,6 @@ type Transactions []*Transaction
 
 // Len return txn size
 func (s Transactions) Len() int { return len(s) }
-
-// GetRlp return index = i txn's RLP encoding
-func (s Transactions) GetRlp(i int) ([]byte, error) {
-	// 實際應該返回 RLP 編碼
-	if i < 0 || i >= len(s) {
-		return nil, errors.New("invalid index")
-	}
-	txn := s[i]
-	rawData := []interface{}{
-		txn.Hash(),
-		txn.Nonce(),
-		txn.To(),
-		txn.Value(),
-		txn.Data(),
-		txn.Size(),
-		txn.GasLimit(),
-		txn.GasPrice(),
-	}
-
-	bytes, err := common.RlpEncodeToBytes(rawData)
-	if err != nil {
-		log.Error("encode txn failed", "err", err)
-		panic("encode txn failed")
-	}
-
-	return bytes, nil
-}
 
 // Block Represent 1 block in blockchain
 // Block = BlockHeader + TxnList
@@ -312,6 +284,38 @@ func (b *Block) NumberU64() uint64 {
 	return b.header.Number.Uint64()
 }
 
-func (b *Block) Body() interface{} {
-	return b.transactions
+func (b *Block) RlpEncodeTxns() [][]byte {
+	txnCount := len(b.transactions)
+	if txnCount == 0 {
+		return nil
+	}
+
+	rlpBody := make([][]byte, 0)
+
+	for i := 0; i < txnCount; i++ {
+		txn := b.transactions[i]
+		rlpBody = append(rlpBody, txn.Encode())
+	}
+
+	return rlpBody
+}
+
+func (b *Block) Receipts() Receipts {
+	return b.receipts
+}
+
+func (b *Block) RlpEncodeReceipts() [][]byte {
+	count := len(b.receipts)
+	if count == 0 {
+		return nil
+	}
+
+	rlpBody := make([][]byte, 0)
+
+	for i := 0; i < count; i++ {
+		rec := b.receipts[i]
+		rlpBody = append(rlpBody, rec.Encode())
+	}
+
+	return rlpBody
 }

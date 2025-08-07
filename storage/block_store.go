@@ -9,13 +9,17 @@ type BlockStore struct {
 	db *ChainDatabase
 }
 
+func NewBlockStore(db *ChainDatabase) *BlockStore {
+	return &BlockStore{db: db}
+}
+
 type TxLookupEntry struct {
 	BlockHash  common.Hash
 	BlockIndex uint64
 	Index      uint64
 }
 
-func (bs *BlockStore) Write(block *types.Block, receipts types.Receipts) error {
+func (bs *BlockStore) Write(block *types.Block) error {
 	batch := bs.db.blockDB.NewBatch()
 
 	// 1. write into block
@@ -23,27 +27,45 @@ func (bs *BlockStore) Write(block *types.Block, receipts types.Receipts) error {
 	if err != nil {
 		return err
 	}
-	batch.Put(headerKey(block.NumberU64(), block.Hash()), headerData)
-
-	// 2. write into body
-	bodyData, err := common.RlpEncodeToBytes(block.Body())
+	err = batch.Put(headerKey(block.NumberU64(), block.Hash()), headerData)
 	if err != nil {
 		return err
 	}
-	batch.Put(bodyKey(block.NumberU64(), block.Hash()), bodyData)
+
+	// 2. write into body (body is block's all txn rlp encoded bytes)
+	bodyData, err := common.RlpEncodeToBytes(block.RlpEncodeTxns())
+	if err != nil {
+		return err
+	}
+	err = batch.Put(bodyKey(block.NumberU64(), block.Hash()), bodyData)
+	if err != nil {
+		return err
+	}
 
 	// 3. receipt
-	receiptData, err := common.RlpEncodeToBytes(receipts)
+	receiptData, err := common.RlpEncodeToBytes(block.RlpEncodeReceipts())
 	if err != nil {
 		return err
 	}
-	batch.Put(receiptsKey(block.NumberU64(), block.Hash()), receiptData)
+	err = batch.Put(receiptsKey(block.NumberU64(), block.Hash()), receiptData)
+	if err != nil {
+		return err
+	}
 
 	// 4. update canonical
-	batch.Put(canonicalKey(block.NumberU64()), block.Hash().Bytes())
+	err = batch.Put(canonicalKey(block.NumberU64()), block.Hash().Bytes())
+	if err != nil {
+		return err
+	}
 
-	batch.Put(headBlockKey, block.Hash().Bytes())
-	batch.Put(headHeaderKey, block.Hash().Bytes())
+	err = batch.Put(headBlockKey, block.Hash().Bytes())
+	if err != nil {
+		return err
+	}
+	err = batch.Put(headHeaderKey, block.Hash().Bytes())
+	if err != nil {
+		return err
+	}
 
 	// 5. index
 	indexBatch := bs.db.indexDB.NewBatch()
@@ -53,7 +75,10 @@ func (bs *BlockStore) Write(block *types.Block, receipts types.Receipts) error {
 			BlockIndex: block.NumberU64(),
 			Index:      uint64(i),
 		})
-		indexBatch.Put(txLookupKey(tx.Hash()), lookupData)
+		err = indexBatch.Put(txLookupKey(tx.Hash()), lookupData)
+		if err != nil {
+			return err
+		}
 	}
 
 	// exec batch write
@@ -84,9 +109,23 @@ func (bs *BlockStore) ReadBlock(hash common.Hash, number uint64) (*types.Block, 
 	if err != nil {
 		return nil, err
 	}
-	var body types.Transactions
-	if err := common.RlpDecodeBytes(bodyData, &body); err != nil {
+
+	var encodedBody []interface{}
+	err = common.RlpDecodeBytes(bodyData, &encodedBody)
+	if err != nil {
 		return nil, err
+	}
+	var body types.Transactions
+	for _, encoded := range encodedBody {
+		if b, ok := encoded.([]byte); ok {
+			if txn, err := types.DecodeToTxn(b); err == nil {
+				body = append(body, txn)
+			} else {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	// 3. read receipts
@@ -94,9 +133,22 @@ func (bs *BlockStore) ReadBlock(hash common.Hash, number uint64) (*types.Block, 
 	if err != nil {
 		return nil, err
 	}
-	var receipts types.Receipts
-	if err := common.RlpDecodeBytes(receiptData, &receipts); err != nil {
+	var encodedReceiptsBody []interface{}
+	err = common.RlpDecodeBytes(receiptData, &encodedReceiptsBody)
+	if err != nil {
 		return nil, err
+	}
+	var receipts types.Receipts
+	for _, encoded := range encodedReceiptsBody {
+		if b, ok := encoded.([]byte); ok {
+			if txn, err := types.DecodeToReceipt(b); err == nil {
+				receipts = append(receipts, txn)
+			} else {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	// 4. make block
@@ -124,9 +176,18 @@ func (bs *BlockStore) ReadReceipts(hash common.Hash, number uint64) (types.Recei
 func (bs *BlockStore) DeleteBlock(hash common.Hash, number uint64) error {
 	batch := bs.db.blockDB.NewBatch()
 
-	batch.Delete(headerKey(number, hash))
-	batch.Delete(bodyKey(number, hash))
-	batch.Delete(receiptsKey(number, hash))
+	err := batch.Delete(headerKey(number, hash))
+	if err != nil {
+		return err
+	}
+	err = batch.Delete(bodyKey(number, hash))
+	if err != nil {
+		return err
+	}
+	err = batch.Delete(receiptsKey(number, hash))
+	if err != nil {
+		return err
+	}
 
 	return batch.Write()
 }

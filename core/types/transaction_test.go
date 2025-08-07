@@ -39,8 +39,8 @@ func Test_Sign_Txn_then_Verify(t *testing.T) {
 
 	err = txn.SignTx(privKey)
 	assert.Nil(t, err)
-	assert.NotNil(t, txn.data.signature)
-	fmt.Println("signature:", txn.data.signature)
+	assert.NotNil(t, txn.data.Signature)
+	fmt.Println("signature:", txn.data.Signature)
 	sender, err := txn.Sender()
 	assert.Nil(t, err)
 	fmt.Println("sender:", sender)

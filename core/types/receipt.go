@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"frizo-blockchain/common"
 	"frizo-blockchain/crypto"
@@ -15,7 +16,7 @@ import (
 // - provide proof of txn
 type Receipt struct {
 	// PostState state root after exec
-	PostState []byte `json:"root"`
+	PostState common.Hash `json:"root"`
 
 	// Status exec status（1=success, 0=failed）
 	Status uint64 `json:"status"`
@@ -74,7 +75,7 @@ type Log struct {
 }
 
 // NewReceipt create new receipt
-func NewReceipt(root []byte, failed bool, cumulativeGasUsed *big.Int) *Receipt {
+func NewReceipt(root common.Hash, failed bool, cumulativeGasUsed *big.Int) *Receipt {
 	r := &Receipt{
 		PostState:         root,
 		CumulativeGasUsed: cumulativeGasUsed,
@@ -120,12 +121,129 @@ func (r *Receipt) String() string {
 	if r.Failed() {
 		status = "Failed"
 	}
-	return fmt.Sprintf("Receipt(%s): Status=%s, GasUsed=%d, Logs=%d",
+	return fmt.Sprintf("Receipt-TxHash(%s..): PostState:%s.., Status=%s, GasUsed=%d, CumulativeGasUsed=%d, Logs=%d, ContractAddr=%s, TxIndex=%d, BlockHash=%s, blockNumber=%d",
 		r.TxHash.Hex()[:8],
+		r.PostState.Hex()[:8],
 		status,
 		r.GasUsed,
+		r.CumulativeGasUsed,
 		len(r.Logs),
+		r.ContractAddress,
+		r.TransactionIndex,
+		r.BlockHash,
+		r.BlockNumber,
 	)
+}
+
+func (r *Receipt) Encode() []byte {
+	rawData := []interface{}{
+		r.PostState,
+		r.Status,
+		r.CumulativeGasUsed,
+		r.Bloom,
+		r.TxHash,
+		r.ContractAddress,
+		r.GasUsed,
+		r.BlockHash,
+		r.BlockNumber,
+		r.TransactionIndex,
+	}
+	bytes, err := common.RlpEncodeToBytes(rawData)
+	if err != nil {
+		panic(err)
+	}
+	return bytes
+}
+
+// DecodeToReceipt decode RLP bytes to Receipt
+func DecodeToReceipt(encoded []byte) (*Receipt, error) {
+	if len(encoded) == 0 {
+		return nil, errors.New("empty encoded receipt data")
+	}
+
+	var decoded []interface{}
+	err := common.RlpDecodeBytes(encoded, &decoded)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode receipt RLP: %w", err)
+	}
+
+	if len(decoded) != 10 {
+		return nil, fmt.Errorf("invalid receipt format: expected 10 fields, got %d", len(decoded))
+	}
+
+	r := &Receipt{}
+
+	// 1.  PostState
+	postState, err := decodeBytes(decoded[0])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode PostState: %w", err)
+	}
+	r.PostState = common.BytesToHash(postState)
+
+	// 2.  Status
+	status, err := decodeUint64(decoded[1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Status: %w", err)
+	}
+	r.Status = status
+
+	// 3.  CumulativeGasUsed
+	cumulativeGasUsed, err := decodeBigInt(decoded[2])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode CumulativeGasUsed: %w", err)
+	}
+	r.CumulativeGasUsed = cumulativeGasUsed
+
+	// 4.  Bloom
+	bloom, err := decodeBloom(decoded[3])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode Bloom: %w", err)
+	}
+	r.Bloom = bloom
+
+	// 5.  TxHash
+	txHash, err := decodeHash(decoded[4])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode TxHash: %w", err)
+	}
+	r.TxHash = txHash
+
+	// 6.  ContractAddress (可能為 nil)
+	contractAddress, err := decodeAddress(decoded[5])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode ContractAddress: %w", err)
+	}
+	r.ContractAddress = contractAddress
+
+	// 7.  GasUsed
+	gasUsed, err := decodeBigInt(decoded[6])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode GasUsed: %w", err)
+	}
+	r.GasUsed = gasUsed
+
+	// 8.  BlockHash
+	blockHash, err := decodeHash(decoded[7])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode BlockHash: %w", err)
+	}
+	r.BlockHash = blockHash
+
+	// 9.  BlockNumber
+	blockNumber, err := decodeBigInt(decoded[8])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode BlockNumber: %w", err)
+	}
+	r.BlockNumber = blockNumber
+
+	// 10.  TransactionIndex
+	txIndex, err := decodeUint(decoded[9])
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode TransactionIndex: %w", err)
+	}
+	r.TransactionIndex = txIndex
+
+	return r, nil
 }
 
 // ========= bloom filter func =========

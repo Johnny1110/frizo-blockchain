@@ -58,13 +58,17 @@ func Test_BlockStore(t *testing.T) {
 	for idx, rec := range readBlock.Receipts() {
 		fmt.Println("index:", idx, "receipt:", rec)
 	}
+
+	// ================================================================
+	fmt.Println("Recover Header")
+	fmt.Println("Header: ", readBlock.Header())
 }
 
 func generate_test_block(t *testing.T) (*types.Block, types.Receipts) {
 	txns := generate_test_txns(t)
 	recis := generate_text_recis(t)
-	header := types.NewHeader(common.Hash{}, big.NewInt(100), uint64(time.Now().Nanosecond()),
-		big.NewInt(50000), big.NewInt(50000), []byte{}, common.Hash{}, 0)
+	header := types.NewHeader(common.BytesToHash([]byte("parentHash")), big.NewInt(100), uint64(time.Now().Nanosecond()),
+		big.NewInt(50000), big.NewInt(50000), []byte("12138"), common.BytesToHash([]byte("mix")), 5)
 
 	block := types.NewBlock(header, txns, recis)
 	fmt.Println("generate mock block>: ", block)

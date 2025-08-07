@@ -74,6 +74,34 @@ func NewHeader(parentHash common.Hash, number *big.Int, timestamp uint64,
 	}
 }
 
+func (h *Header) String() string {
+	return fmt.Sprintf(`Header{
+  ParentHash:       %s,
+  Number:           %s,
+  Timestamp:        %d,
+  TxHashRoot:       %s,
+  ReceiptHashRoot:  %s,
+  StateHashRoot:    %s,
+  GasLimit:         %s,
+  GasUsed:          %s,
+  Extra:            %x,
+  MixDigest:        %s,
+  Nonce:            %d,
+}`,
+		h.ParentHash.String(),
+		h.Number.String(),
+		h.Timestamp,
+		h.TxHashRoot.String(),
+		h.ReceiptHashRoot.String(),
+		h.StateHashRoot.String(),
+		h.GasLimit.String(),
+		h.GasUsed.String(),
+		h.Extra,
+		h.MixDigest.String(),
+		h.Nonce,
+	)
+}
+
 // NewBlock constructor for block
 func NewBlock(header *Header, txs []*Transaction, receipts []*Receipt) *Block {
 	b := &Block{header: CopyHeader(header), enableCache: common.BlockCacheSwitch}

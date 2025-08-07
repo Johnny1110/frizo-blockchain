@@ -71,7 +71,7 @@ func (sp *StateProcessor) CreateReceipt(
 	}
 
 	return &types.Receipt{
-		PostState:         stateRoot.Bytes(),
+		PostState:         stateRoot,
 		Status:            status,
 		CumulativeGasUsed: cumulativeGasUsed,
 		TxHash:            tx.Hash(),

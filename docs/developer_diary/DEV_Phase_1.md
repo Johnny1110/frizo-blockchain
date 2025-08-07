@@ -1,172 +1,467 @@
-# Phase-1 開發計劃：基礎架構
+# Frizo Blockchain Phase-1 開發計劃
+<br>
 
-## 專案根目錄結構
+---
 
+<br>
+
+## 一、已完成的主要功能
+
+### 1. 密碼學相關功能 ✅
+
+* 公私鑰 (Wallet) 生成: crypto/keys.go
+* 簽署與驗證: crypto/signature.go
+* 哈希函數: crypto/hash.go - Keccak256 實現
+
+<br>
+
+### 2. 區塊鏈核心資料結構定義 ✅
+
+* 區塊結構: core/types/block.go
+
+    * Header、Body 結構完整
+    * 區塊驗證邏輯實現
+    * RLP 編碼支援
+
+
+* 交易結構: core/types/transaction.go
+
+    * 支援簽名驗證
+    * From `Ecrecover()` 地址恢復
+    * Gas 計算機制
+    * 交易緩存優化
+
+
+* 收據結構: core/types/receipt.go
+
+    * 交易執行結果記錄
+    * Gas 使用追蹤
+
+
+
+<br>
+
+### 3. Merkle Tree 與 MPT 實現 ✅
+
+* Merkle Tree: /trie/merkle.go
+
+    * 完整的樹構建邏輯
+    * 證明生成與驗證
+
+
+* Modified Merkle Patricia Tree (MPT):
+
+    * /trie/mpt.go - 核心樹結構，支援 RLP 編碼
+    * /trie/mpt_proof.go - 完整的證明功能
+    * /trie/mpt_tool.go - Debug 工具
+
+
+
+<br>
+
+### 4. Storage 持久化層 ✅
+
+* DB 介面定義: /storage/interfaces/interfaces.go
+* LevelDB 實現: /storage/leveldb/leveldb.go
+* 記憶體 DB: /storage/memory/memdb.go（測試用）
+* 鏈資料庫管理: /storage/database.go
+
+<br>
+
+三層分離架構（blockDB, stateDB, indexDB）
+
+<br>
+
+* 區塊存儲: /storage/block_store.go
+
+    * 區塊讀寫功能
+    * 交易索引管理
+
+
+* 狀態存儲: /storage/state_store.go
+
+    * MPT 節點持久化
+    * 合約代碼存儲
+
+
+* 存儲架構: /storage/schema.go
+
+    * 鍵值編碼規範
+
+
+
+<br>
+5. 區塊鏈核心邏輯（待完成）⚠️
+
+* Blockchain 主體: core/blockchain/blockchain.go
+
+    * 區塊插入與驗證
+    * 狀態轉換執行
+    * 鏈狀態管理
+
+
+* 創世區塊: core/blockchain/genesis.go
+
+    * 讀取 genesis.json
+    * 預分配賬戶設置
+    * 默認創世配置
+
+
+* 狀態處理器: core/blockchain/state_processor.go
+
+    * 交易執行邏輯
+    * 收據生成
+
+
+
+<br>
+
+### 6. 簡化版狀態管理(單元測試用) ✅
+
+* SimpleStateDB: core/state/simple_state.go
+
+    * 賬戶餘額管理
+    * Nonce 追蹤
+    * Snapshot/Revert 機制
+    * 狀態根計算
+
+
+
+<br>
+
+### 7. 通用工具與常量 ✅
+
+* 通用類型: common/types.go
+
+    * Address、Hash 類型定義
+    * RLP 編碼工具
+
+
+* 錯誤定義: common/errors.go
+
+    * 完整的錯誤類型系統
+
+
+* 常量定義: common/constants.go
+
+    * 鏈參數配置
+    * Gas 費用設置
+    * 網路常量
+
+
+
+<br>
+
+### 8. 構建與測試基礎設施 ✅
+
+* Makefile: 完整的構建系統
+* 測試框架: 單元測試覆蓋主要模組
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 二、未完成但必需的功能（Phase-1）
+
+### 1. MPT 與 State 深度整合 🔴
+
+* 將 SimpleStateDB 與 MPT 完全整合
+  實現真正的狀態樹管理
+* 支援狀態證明生成
+
+<br>
+
+### 2. 交易池（TxPool）🔴
+
+* 交易驗證與排序
+* Gas Price 排序機制
+* 交易替換策略
+* Pending/Queued 狀態管理
+* 內存限制與驅逐策略
+
+<br>
+
+### 3. 共識機制 (要做成後續可置換實作，未來要可靈活抽換不同共識算法實作) 🔴
+
+* 先實現 Clique (PoA) 共識
+
+  實現要點：
+
+    * 授權節點管理
+    * 輪流出塊機制
+    * 簽名驗證
+
+
+
+<br>
+
+### 4. P2P 網路層 🔴
+
+基礎協議實現：
+
+* 節點發現（可先用靜態節點）
+* TCP 連接管理
+* 消息編解碼（RLP）
+
+
+同步協議：
+
+* 握手協議
+* 區塊頭同步
+* 區塊體請求/響應
+* 交易廣播
+
+
+
+<br>
+
+### 5. RPC API 接口 🔴
+
+基礎 JSON-RPC：
+
+* eth_blockNumber
+* eth_getBlockByNumber
+* eth_getBalance
+* eth_sendRawTransaction
+* eth_getTransactionReceipt
+
+
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 三、優化後的開發計劃
+
+### Phase 1-A: 核心功能完善
+
+<br>
+
+1. State 與 MPT 整合
+```go
+// 需要實現的介面
+type StateDB interface {
+    GetState(addr Address, key Hash) Hash
+    SetState(addr Address, key Hash, value Hash)
+    GetCode(addr Address) []byte
+    SetCode(addr Address, code []byte)
+    Commit() (Hash, error)
+    Database() Database
+}
+```
+
+<br>
+
+2. 交易池實現
+```go
+3. type TxPool struct {
+    pending map[Address]TxList  // 待打包交易
+    queue   map[Address]TxList  // 排隊交易
+    config  TxPoolConfig       // 配置參數
+}
+```
+
+<br>
+
+### Phase 1-B: 共識機制
+
+設計成後續可抽換共識的框架。
+
+目前實作先採用 Clique PoA 共識
+
+實現步驟：
+
+* 定義授權節點列表
+* 實現簽名者輪換邏輯
+* 區塊簽名與驗證
+* 投票機制（可選）
+
+
+
+<br>
+
+### Phase 1-C: 網路層實現
+
+1. P2P 基礎架構
+```go
+type P2PServer struct {
+    peers     map[NodeID]*Peer
+    protocols []Protocol
+    listener  net.Listener
+}
+```
+
+2. 以太坊 Wire Protocol
+
+必需消息類型：
+
+```
+Status (0x00)：握手
+NewBlockHashes (0x01)：新區塊通知
+Transactions (0x02)：交易廣播
+GetBlockHeaders (0x03)：請求區塊頭
+BlockHeaders (0x04)：區塊頭響應
+GetBlockBodies (0x05)：請求區塊體
+BlockBodies (0x06)：區塊體響應
+```
+
+
+3. 同步策略
+
+Fast Sync 簡化版：
+
+* 同步區塊頭鏈
+* 下載最新狀態
+* 同步最近區塊體
+* 驗證狀態根
+
+<br>
+
+### Phase 1-D: 整合測試
+
+測試場景
+
+* 單節點測試：
+
+    * 創世區塊初始化
+    * 交易執行與狀態更新
+    * 區塊生成與持久化
+
+
+* 多節點測試：
+
+    * 3 節點 PoA 網路
+    * 交易廣播與同步
+    * 分叉處理
+
+
+壓力測試：
+
+* TPS 測試（目標 100+ TPS）
+* 狀態膨脹測試
+* 網路分區恢復
+
+
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 四、技術架構
+
+1. 模組化設計
 ```
 frizo-blockchain/
-├── cmd/                      # 主程式入口
-│   ├── frizo/               # 主節點程式
-│   │   └── main.go
-│   └── utils/               # 工具程式
-│       ├── genesis/         # 創世區塊生成工具
-│       └── keygen/          # 密鑰生成工具
-│
-├── core/                     # 核心區塊鏈邏輯
-│   ├── types/               # 核心數據結構
-│   │   ├── block.go         # 區塊結構定義
-│   │   ├── transaction.go   # 交易結構定義
-│   │   ├── receipt.go       # 交易收據
-│   │   └── common.go        # 通用類型定義
-│   │
-│   ├── blockchain/          # 區塊鏈管理
-│   │   ├── blockchain.go    # 區塊鏈主邏輯
-│   │   ├── genesis.go       # 創世區塊處理
-│   │   ├── validation.go    # 區塊驗證邏輯
-│   │   └── chain_state.go   # 鏈狀態管理
-│   │
-│   └── state/               # 狀態管理
-│       ├── statedb.go       # 狀態資料庫
-│       └── account.go       # 帳戶狀態
-│
-├── crypto/                   # 加密相關
-│   ├── hash.go              # 哈希函數 (Keccak256)
-│   ├── signature.go         # 簽名相關 (secp256k1)
-│   ├── merkle.go            # 默克爾樹實現
-│   └── keys.go              # 密鑰管理
-│
-├── storage/                  # 存儲層
-│   ├── database.go          # 資料庫接口定義
-│   ├── leveldb/             # LevelDB 實現
-│   │   ├── leveldb.go       # LevelDB 包裝器
-│   │   └── batch.go         # 批量操作
-│   └── memory/              # 內存資料庫（測試用）
-│       └── memdb.go
-│
-├── network/                  # 網路層
-│   ├── p2p/                 # P2P 網路
-│   │   ├── peer.go          # 節點管理
-│   │   ├── protocol.go      # 通信協議定義
-│   │   ├── message.go       # 消息類型定義
-│   │   └── server.go        # P2P 服務器
-│   │
-│   └── discovery/           # 節點發現
-│       ├── discovery.go     # 節點發現接口
-│       └── static.go        # 靜態節點列表
-│
-├── common/                   # 通用工具
-│   ├── types.go             # 基礎類型定義
-│   ├── utils.go             # 工具函數
-│   ├── errors.go            # 錯誤定義
-│   └── constants.go         # 常量定義
-│
-├── config/                   # 配置管理
-│   ├── config.go            # 配置結構
-│   ├── genesis.json         # 創世區塊配置
-│   └── default.go           # 默認配置
-│
-├── api/                      # API 接口（階段1僅基礎）
-│   └── types.go             # API 類型定義
-│
-├── tests/                    # 測試相關
-│   ├── unit/                # 單元測試
-│   ├── integration/         # 整合測試
-│   └── testdata/            # 測試數據
-│
-├── docs/                     # 文檔
-│   ├── architecture/        # 架構設計文檔
-│   ├── api/                 # API 文檔
-│   └── development/         # 開發指南
-│
-├── scripts/                  # 腳本
-│   ├── build.sh             # 構建腳本
-│   ├── test.sh              # 測試腳本
-│   └── setup.sh             # 環境設置
-│
-├── go.mod                    # Go 模組定義
-├── go.sum                    # Go 模組校驗
-├── Makefile                  # 構建配置
-├── README.md                 # 專案說明
-├── .gitignore               # Git 忽略文件
-└── .github/                  # GitHub 相關
-└── workflows/           # CI/CD 配置
+├── consensus/        # 共識介面
+│   ├── clique/      # PoA 實現
+│   └── interface.go # 共識介面定義
+├── eth/             # 以太坊協議
+│   ├── protocols/   # Wire Protocol
+│   └── sync/        # 同步邏輯
+├── rpc/            # RPC 服務
+│   ├── server.go   
+│   └── endpoints/  # API 端點
+└── txpool/         # 交易池
+    ├── txpool.go
+    └── txlist.go
 ```
 
-## 各資料夾詳細功能說明
+2. 介面抽象
 
-### 1. **cmd/** - 命令行程式
-- **frizo/**: 主節點程式，包含節點啟動、停止、配置載入等功能
-- **utils/**: 各種工具程式
-- `genesis/`: 生成創世區塊配置
-- `keygen/`: 生成節點密鑰對
+```go
+// Consensus 介面
+type Engine interface {
+    Author(header *Header) (Address, error)
+    VerifyHeader(chain ChainReader, header *Header) error
+    Prepare(chain ChainReader, header *Header) error
+    Finalize(chain ChainReader, header *Header, state *StateDB, txs []*Transaction) error
+    Seal(chain ChainReader, block *Block, results chan<- *Block, stop <-chan struct{}) error
+}
+```
 
-### 2. **core/** - 區塊鏈核心
-- **types/**: 所有核心數據結構
-- `Block`: 區塊頭、區塊體、區塊哈希計算
-- `Transaction`: 交易結構、簽名驗證
-- `Receipt`: 交易執行結果
-- **blockchain/**: 區塊鏈邏輯
-- 區塊添加、驗證、查詢
-- 鏈重組處理
-- 創世區塊初始化
-- **state/**: 世界狀態管理
-- 帳戶餘額、nonce 管理
-- 狀態樹（簡化版，為 EVM 預留）
+3. 配置管理
+```go
+type Config struct {
+    ChainID     *big.Int
+    Consensus   ConsensusConfig
+    Network     NetworkConfig
+    TxPool      TxPoolConfig
+    Database    DatabaseConfig
+}
+```
 
-### 3. **crypto/** - 密碼學組件
-- `hash.go`: Keccak256 哈希實現
-- `signature.go`: ECDSA 簽名和驗證
-- `merkle.go`: 默克爾樹構建和驗證
-- `keys.go`: 公私鑰生成和管理
+<br>
+<br>
 
-### 4. **storage/** - 持久化存儲
-- `database.go`: 通用資料庫接口（便於切換不同實現）
-- **leveldb/**: LevelDB 具體實現
-- 鍵值對存儲
-- 批量寫入優化
-- **memory/**: 內存資料庫（用於測試）
+---
 
-### 5. **network/** - 網路通信
-- **p2p/**: P2P 網路實現
-- `peer.go`: 節點連接管理
-- `protocol.go`: 自定義協議（區塊同步、交易廣播）
-- `message.go`: 消息編解碼
-- `server.go`: TCP 服務器
-- **discovery/**: 節點發現（階段1使用靜態節點列表）
+<br>
+<br>
 
-### 6. **common/** - 通用組件
-- 共享的類型定義（Address, Hash 等）
-- 工具函數（編碼、解碼等）
-- 錯誤類型定義
-- 全局常量
+## 五、里程碑與驗收標準
 
-### 7. **config/** - 配置管理
-- 節點配置（端口、資料目錄等）
-- 創世區塊配置
-- 網路參數配置
+### Milestone 1: 本地區塊鏈
 
-### 8. **tests/** - 測試套件
-- **unit/**: 各模組的單元測試
-- **integration/**: 跨模組整合測試
-- **testdata/**: 測試用的數據文件
+* 區塊創建與驗證
+* 狀態管理與持久化
+* 交易池基本功能
+* 單節點出塊
 
-## 階段 1 開發重點
+<br>
 
-### 優先開發順序：
-1. **common/** - 基礎類型和工具
-2. **crypto/** - 加密組件
-3. **core/types/** - 核心數據結構
-4. **storage/** - 存儲層
-5. **core/blockchain/** - 區塊鏈邏輯
-6. **network/** - 基礎網路功能
-7. **cmd/** - 命令行介面
+### Milestone 2: 網路同步
 
-### 第一個里程碑目標：
-- 能夠創建和驗證區塊
-- 能夠持久化存儲區塊
-- 兩個節點之間能夠同步區塊
+* P2P 連接建立
+* 區塊同步協議
+* 交易廣播
+* 3 節點測試網
 
-### 測試策略：
-- 每個模組都有對應的 `*_test.go` 文件
-- 使用 `testify` 套件進行斷言
-- 使用 `mockery` 生成 mock 對象
-- 目標覆蓋率 80%+
+<br>
+
+### Milestone 3: Phase-1 發布
+
+* RPC API 完整實現
+* 性能優化（100+ TPS）
+* 文檔完善
+* Docker 部署支援
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 六、風險與挑戰
+
+* 狀態同步複雜度：建議先實現全節點同步
+* 網路穩定性：需要完善的錯誤處理與重連機制
+* 共識安全性：PoA 需要可信的初始節點集
+
+<br>
+<br>
+
+---
+
+<br>
+<br>
+
+## 七、後續發展路線
+
+* 升級到 PoS 共識
+* Casper FFG 簡化版
+* Validator 管理
+* Slashing 機制

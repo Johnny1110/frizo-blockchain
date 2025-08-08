@@ -14,6 +14,7 @@
 4. Modified Merkle Patricia Tree (MPT) [link](basic/MPT.md)
 5. RLP 編碼 [link](basic/RLP.md)
 6. core - types 核心資料結構 [link](basic/core_types.md)
+7. 以太坊為什麼不能平行處理交易?[link](basic/about_async.md)
 
 
 

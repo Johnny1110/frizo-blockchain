@@ -12,8 +12,8 @@ import (
 type StateDB interface {
 	// Account
 	CreateAccount(address common.Address)
-	SubBalance(address common.Address, value *big.Int)
-	AddBalance(address common.Address, amount *big.Int)
+	SubBalance(address common.Address, value *big.Int) error
+	AddBalance(address common.Address, amount *big.Int) error
 	GetBalance(address common.Address) *big.Int
 	GetNonce(address common.Address) uint64
 	SetNonce(address common.Address, nonce uint64)
@@ -25,12 +25,12 @@ type StateDB interface {
 	GetCodeSize(address common.Address) int
 
 	// Contract Storage Access
-	GetState(address common.Address) common.Hash
+	GetState(addr common.Address, hash common.Hash) common.Hash
 	SetState(address common.Address, hash1 common.Hash, hash2 common.Hash)
 	GetCommittedState(address common.Address, hash common.Hash) common.Hash
 
 	// Account management
-	HashSuicided(address common.Address) bool
+	HasSuicided(address common.Address) bool
 	Suicide(address common.Address) bool
 	Exist(address common.Address) bool
 	Empty(address common.Address) bool
@@ -61,7 +61,7 @@ type StateDB interface {
 	IsSlotInAccessList(addr common.Address, slot common.Hash) (addressOk, slotOk bool)
 
 	// Debugging and tools
-	ForEachStorage(common.Address, func(common.Hash, common.Hash) bool) error
+	ForEachContractStorage(common.Address, func(common.Hash, common.Hash) bool) error
 	Copy() StateDB
 	Database() Database
 

@@ -98,3 +98,15 @@ func (o *stateObject) empty() bool {
 	// TODO
 	return false
 }
+
+func (o *stateObject) finalise() {
+	// TODO
+}
+
+func (o *stateObject) ForEachContractStorage(cb func(key common.Hash, value common.Hash) bool) error {
+	// TODO
+}
+
+func (o *stateObject) deepCopy(state *stateDB) *stateObject {
+	// TODO
+}

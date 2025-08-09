@@ -46,7 +46,7 @@ type stateDB struct {
 }
 
 // NewStateDB create new stateDB
-func NewStateDB(db Database, root common.Hash) (*stateDB, error) {
+func NewStateDB(db Database, root common.Hash) (StateDB, error) {
 	trie, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err

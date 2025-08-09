@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"frizo-blockchain/storage/interfaces"
 	"frizo-blockchain/storage/leveldb"
 	"frizo-blockchain/storage/memory"
 	"path/filepath"
@@ -16,20 +15,20 @@ type DatabaseConfig struct {
 }
 
 type ChainDatabase struct {
-	blockDB interfaces.Database // block, txn, receipt
-	stateDB interfaces.Database // state,mpt-node, contract-code
-	indexDB interfaces.Database // index
+	blockDB Database // block, txn, receipt
+	stateDB Database // state,mpt-node, contract-code
+	indexDB Database // index
 
 	config *DatabaseConfig
 }
 
-func (cdb *ChainDatabase) BlockDB() interfaces.Database {
+func (cdb *ChainDatabase) BlockDB() Database {
 	return cdb.blockDB
 }
-func (cdb *ChainDatabase) StateDB() interfaces.Database {
+func (cdb *ChainDatabase) StateDB() Database {
 	return cdb.stateDB
 }
-func (cdb *ChainDatabase) IndexDB() interfaces.Database {
+func (cdb *ChainDatabase) IndexDB() Database {
 	return cdb.indexDB
 }
 

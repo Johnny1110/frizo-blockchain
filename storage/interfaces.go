@@ -1,4 +1,4 @@
-package interfaces
+package storage
 
 type Database interface {
 	Get(key []byte) ([]byte, error)

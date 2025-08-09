@@ -2,7 +2,7 @@ package leveldb
 
 import (
 	"fmt"
-	"frizo-blockchain/storage/interfaces"
+	"frizo-blockchain/storage"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
@@ -144,7 +144,7 @@ func (l *LevelDB) Has(key []byte) (bool, error) {
 }
 
 // NewBatch 創建批量操作
-func (l *LevelDB) NewBatch() interfaces.Batch {
+func (l *LevelDB) NewBatch() storage.Batch {
 	return &leveldbBatch{
 		db:    l.db,
 		batch: new(leveldb.Batch),
@@ -153,7 +153,7 @@ func (l *LevelDB) NewBatch() interfaces.Batch {
 }
 
 // NewIterator 創建迭代器
-func (l *LevelDB) NewIterator(prefix []byte, start []byte) interfaces.Iterator {
+func (l *LevelDB) NewIterator(prefix []byte, start []byte) storage.Iterator {
 	var slice *util.Range
 
 	if prefix != nil {
@@ -290,7 +290,7 @@ func (b *leveldbBatch) ValueSize() int {
 }
 
 // Replay 重放批處理操作到另一個批處理
-func (b *leveldbBatch) Replay(target interfaces.Batch) error {
+func (b *leveldbBatch) Replay(target storage.Batch) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -299,7 +299,7 @@ func (b *leveldbBatch) Replay(target interfaces.Batch) error {
 
 // replayHandler 用於重放批處理
 type replayHandler struct {
-	target interfaces.Batch
+	target storage.Batch
 }
 
 func (h *replayHandler) Put(key, value []byte) {

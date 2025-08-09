@@ -9,7 +9,7 @@ import (
 	"sync"
 )
 
-type Account struct {
+type SimpleAccount struct {
 	Balance *big.Int
 	Nonce   uint64
 }

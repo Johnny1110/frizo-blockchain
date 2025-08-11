@@ -20,12 +20,12 @@ type Account struct {
 	Balance *big.Int
 
 	// contract address usage
-	Root     common.Hash // merkle root of the storage trie
+	Root     common.Hash // merkle root of the contract storage trie
 	CodeHash []byte
 }
 
-func NewAccount() Account {
-	return Account{
+func NewAccount() *Account {
+	return &Account{
 		Balance:  big.NewInt(0),
 		Nonce:    0,
 		Root:     EmptyRoot,

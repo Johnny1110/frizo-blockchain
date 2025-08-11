@@ -4,7 +4,6 @@ import (
 	"frizo-blockchain/common"
 	"frizo-blockchain/core/types"
 	"frizo-blockchain/storage"
-	"github.com/ethereum/go-ethereum/trie"
 	"math/big"
 )
 
@@ -98,7 +97,7 @@ type Trie interface {
 	Hash() common.Hash
 
 	// Iterator
-	NodeIterator(startKey []byte) trie.NodeIterator
+	NodeIterator(startKey []byte) NodeIterator
 
 	// Proof generation
 	Prove(key []byte, fromLevel uint, proofDb storage.Database) error

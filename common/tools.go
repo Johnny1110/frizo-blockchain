@@ -1,7 +1,6 @@
 package common
 
 import (
-	"github.com/ethereum/go-ethereum/rlp"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -53,15 +52,6 @@ func IntrinsicGas(data []byte, contractCreation bool) (uint64, error) {
 	}
 
 	return gas, nil
-}
-
-func RlpEncodeToBytes(val interface{}) ([]byte, error) {
-	return rlp.EncodeToBytes(val)
-}
-
-// RlpDecodeBytes parses RLP data from b into val.
-func RlpDecodeBytes(b []byte, val interface{}) error {
-	return rlp.DecodeBytes(b, val)
 }
 
 // Keccak256 is a kind of cryptographic hash function, input any data and output 256 bit (32 bytes).

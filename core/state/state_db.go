@@ -176,7 +176,7 @@ func (s *stateDB) GetCode(addr common.Address) []byte {
 	defer s.mu.RUnlock()
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return obj.Code(s)
+		return obj.Code(s.db)
 	}
 
 	return nil
@@ -645,7 +645,7 @@ func (s *stateDB) getStateObject(addr common.Address) *stateObject {
 		return nil
 	}
 
-	obj := newStateObject(s, addr, *acc)
+	obj := newStateObject(s, addr, acc)
 	s.setStateObject(obj)
 	return obj
 }

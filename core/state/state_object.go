@@ -1,6 +1,8 @@
 package state
 
 import (
+	"bytes"
+	"fmt"
 	"frizo-blockchain/common"
 	"math/big"
 )
@@ -20,7 +22,7 @@ type stateObject struct {
 
 	dbErr error
 
-	trie Trie // storage trie
+	trie Trie // contract storage trie
 	code Code // contract bytecode
 
 	originStorage  ContractStorage // Storage cache of original entries
@@ -33,24 +35,56 @@ type stateObject struct {
 	deleted   bool
 }
 
-func newStateObject(sdb *stateDB, addr common.Address, account Account) *stateObject {
-	return nil
+// newStateObject create a state object
+func newStateObject(sdb *stateDB, addr common.Address, account *Account) *stateObject {
+	if account == nil {
+		account = NewAccount()
+	}
+
+	return &stateObject{
+		db:             sdb,
+		address:        addr,
+		data:           *account,
+		originStorage:  make(ContractStorage),
+		pendingStorage: make(ContractStorage),
+		dirtyStorage:   make(ContractStorage),
+	}
+}
+
+func (s *stateObject) Address() common.Address {
+	return s.address
+}
+
+func (s *stateObject) Balance() *big.Int {
+	return s.data.Balance
 }
 
 func (o *stateObject) SetBalance(balance *big.Int) {
+	o.db.journal.append(balanceChange{
+		account: &o.address,
+		prev:    new(big.Int).Set(o.data.Balance),
+	})
 	o.data.Balance = balance
 }
 
 func (o *stateObject) SubBalance(amount *big.Int) error {
-	o.data.Balance = new(big.Int).Sub(o.data.Balance, amount)
+	if amount.Sign() == 0 {
+		return nil
+	}
+
+	if o.Balance().Cmp(amount) < 0 {
+		return common.ErrInsufficientFunds
+	}
+	o.SetBalance(new(big.Int).Sub(o.Balance(), amount))
+	return nil
 }
 
 func (o *stateObject) AddBalance(amount *big.Int) error {
-	o.data.Balance = new(big.Int).Add(o.data.Balance, amount)
-}
-
-func (o *stateObject) Balance() *big.Int {
-	return o.data.Balance
+	if amount.Sign() == 0 {
+		return nil
+	}
+	o.SetBalance(new(big.Int).Add(o.data.Balance, amount))
+	return nil
 }
 
 func (o *stateObject) Nonce() uint64 {
@@ -58,55 +92,252 @@ func (o *stateObject) Nonce() uint64 {
 }
 
 func (o *stateObject) SetNonce(nonce uint64) {
+	o.db.journal.append(nonceChange{
+		account: &o.address,
+		prev:    o.data.Nonce,
+	})
+
 	o.data.Nonce = nonce
 }
 
-func (o *stateObject) CodeHash() []byte {
-	// TODO
-	return nil
-}
+// Code returns the contract code
+func (o *stateObject) Code(db Database) Code {
+	if o.code != nil {
+		return o.code
+	}
 
-func (o *stateObject) Code(s *stateDB) Code {
-	return o.code
-}
+	if bytes.Equal(o.CodeHash(), emptyCodeHash) {
+		return nil
+	}
 
-func (o *stateObject) SetCode(hash common.Hash, code []byte) {
-	// TODO
+	// Get contractCode from db (addr_hash, codeHash)
+	code, err := db.ContractCode(o.addrHash, common.BytesToHash(o.CodeHash()))
+	if err != nil {
+		o.setErr(fmt.Errorf("failed to get code for address %v: %v", o.addrHash, err))
+	}
+	// cache code:
+	o.code = code
+	return code
 }
 
 func (o *stateObject) CodeSize(db Database) int {
-	// TODO
+	if o.code != nil {
+		return len(o.code)
+	}
+
+	if bytes.Equal(o.CodeHash(), emptyCodeHash) {
+		return 0
+	}
+
+	size, err := db.ContractCodeSize(o.addrHash, common.BytesToHash(o.CodeHash()))
+	if err != nil {
+		o.setErr(fmt.Errorf("failed to get code size for address %v: %v", o.addrHash, err))
+	}
+	return size
 }
 
-func (o *stateObject) GetState(db Database, hash common.Hash) common.Hash {
-	// TODO
+func (o *stateObject) SetCode(codeHash common.Hash, code []byte) {
+	prevcode := o.Code(o.db.db)
+	o.db.journal.append(codeChange{
+		account:  &o.address,
+		prevhash: common.BytesToHash(o.CodeHash()),
+		prevcode: prevcode,
+	})
+
+	o.code = code
+	o.data.CodeHash = codeHash.Bytes()
+	o.dirtyCode = true
 }
 
-func (o *stateObject) SetState(db Database, key common.Hash, value common.Hash) {
-	// TODO
+func (o *stateObject) CodeHash() []byte {
+	return o.data.CodeHash
 }
 
+func (o *stateObject) GetState(db Database, key common.Hash) common.Hash {
+	// check from pending contract storage
+	if val, pending := o.pendingStorage[key]; pending {
+		return val
+	}
+
+	// check from o.cache
+	if val, cached := o.originStorage[key]; cached {
+		return val
+	}
+
+	// load from trie
+	val := o.getState(db, key)
+	// store into cache
+	o.originStorage[key] = val
+	return val
+}
+
+// GetCommittedState returns the committed value
 func (o *stateObject) GetCommittedState(db Database, hash common.Hash) common.Hash {
-	// TODO
+	// check origin state
+	if val, cached := o.originStorage[hash]; cached {
+		return val
+	}
+	// load from trie
+	val := o.getState(db, hash)
+	o.originStorage[hash] = val
+	return val
+}
+
+// SetState sets a value in the storage trie
+func (o *stateObject) SetState(db Database, key common.Hash, value common.Hash) {
+	preVal := o.GetState(db, key)
+	if preVal == value {
+		return
+	}
+	// mark into journal
+	o.db.journal.append(storageChange{
+		account:  &o.address,
+		key:      key,
+		prevalue: preVal,
+	})
+
+	o.pendingStorage[key] = value
+}
+
+// ForEachContractStorage iterates over the storage
+func (o *stateObject) ForEachContractStorage(cb func(key common.Hash, value common.Hash) bool) error {
+	// 1. iterate over pending storage
+	for key, value := range o.pendingStorage {
+		if !cb(key, value) {
+			return nil
+		}
+	}
+
+	// 2. iterate over trie
+	it := o.trie.NodeIterator(nil)
+	for it.Next(true) {
+		key := common.BytesToHash(o.trie.Hash().Bytes())
+		if _, pending := o.pendingStorage[key]; !pending {
+			if !cb(key, common.BytesToHash(it.LeafBlob())) {
+				return nil
+			}
+		}
+	}
+	return it.Error()
+}
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// <private> -------------------------------------------------------------------------
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+// updateRoot updates the storage root
+func (o *stateObject) updateRoot(db Database) {
+	o.updateTrie(db)
+	o.data.Root = o.trie.Hash()
+}
+
+// updateTrie updates the storage trie
+func (o *stateObject) updateTrie(db Database) Trie {
+	o.finalise() // move pending to dirty.
+
+	trie := o.getTrie(db)
+	for key, val := range o.dirtyStorage {
+		delete(o.dirtyStorage, key)
+		// delete if val is zero
+		if val == (common.Hash{}) {
+			o.setErr(trie.TryDelete(key.Bytes()))
+			continue
+		}
+
+		// encode and update
+		v, _ := common.RlpEncodeToBytes(val.Bytes())
+		o.setErr(trie.TryUpdate(key.Bytes(), v))
+	}
+	return trie
+}
+
+// getTrie returns the contract storage trie
+func (o *stateObject) getTrie(db Database) Trie {
+	if o.trie == nil {
+		trie, err := db.OpenStorageTrie(o.addrHash, o.data.Root)
+		if err != nil {
+			// open trie with empty hash root
+			trie, err = db.OpenStorageTrie(o.addrHash, common.Hash{})
+			if err != nil {
+				o.setErr(fmt.Errorf("failed to open storage trie: %v", err))
+			}
+		}
+		o.trie = trie
+	}
+	return o.trie
+}
+
+// getState retrieves a value from the storage trie
+func (o *stateObject) getState(db Database, key common.Hash) common.Hash {
+	trie := o.getTrie(db)
+	encoded, err := trie.TryGet(key.Bytes())
+	if err != nil {
+		o.setErr(err)
+		return common.Hash{}
+	}
+
+	var val common.Hash
+	if len(encoded) > 0 {
+		_, content, _, err := common.RlpSplit(encoded)
+		if err != nil {
+			o.setErr(err)
+		}
+		val.SetBytes(content)
+	}
+	return val
 }
 
 func (o *stateObject) markSuicide() {
-	// TODO
+	o.suicided = true
 }
 
+// empty returns whether the account is empty
 func (o *stateObject) empty() bool {
-	// TODO
-	return false
+	return o.data.Nonce == 0 &&
+		o.data.Balance.Sign() == 0 &&
+		bytes.Equal(o.data.CodeHash, emptyCodeHash)
 }
 
+// finalise: storage from pending to dirty
 func (o *stateObject) finalise() {
-	// TODO
+	for key, val := range o.pendingStorage {
+		o.dirtyStorage[key] = val
+	}
+	if len(o.dirtyStorage) > 0 {
+		// clean pending
+		o.pendingStorage = make(ContractStorage)
+	}
 }
 
-func (o *stateObject) ForEachContractStorage(cb func(key common.Hash, value common.Hash) bool) error {
-	// TODO
+func (o *stateObject) deepCopy(db *stateDB) *stateObject {
+	obj := newStateObject(db, o.address, o.data.Copy())
+	// copy trie
+	if o.trie != nil {
+		obj.trie = db.db.CopyTrie(o.trie)
+	}
+	// storage code and storage stuff
+	obj.code = o.code
+	obj.dirtyStorage = o.dirtyStorage.Copy()
+	obj.originStorage = o.originStorage.Copy()
+	obj.pendingStorage = o.pendingStorage.Copy()
+	obj.dirtyCode = o.dirtyCode
+	obj.suicided = o.suicided
+	obj.deleted = o.deleted
+
+	return obj
 }
 
-func (o *stateObject) deepCopy(state *stateDB) *stateObject {
-	// TODO
+func (o *stateObject) setErr(err error) {
+	o.dbErr = err
+}
+
+type NodeIterator interface {
+	Next(bool) bool
+	Error() error
+	Hash() common.Hash
+	Parent() common.Hash
+	Path() []byte
+	Leaf() bool
+	LeafKey() []byte
+	LeafBlob() []byte
 }

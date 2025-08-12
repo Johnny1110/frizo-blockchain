@@ -126,6 +126,7 @@ func (s *stateDB) AddBalance(addr common.Address, amount *big.Int) error {
 	if obj != nil {
 		return obj.AddBalance(amount)
 	}
+	return nil
 }
 
 func (s *stateDB) GetBalance(addr common.Address) *big.Int {
@@ -323,7 +324,7 @@ func (s *stateDB) Commit(deleteEmptyObjects bool) (common.Hash, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// tidy up pending objects
+	// tidy up pending objects (dirty to s.stateObjectsPending)
 	s.finalise(deleteEmptyObjects)
 
 	for addr := range s.stateObjectsPending {
@@ -393,7 +394,7 @@ func (s *stateDB) AddLog(log *types.Log) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.journal.append(addLogChange{txHash: s.txHash})
+	s.journal.append(addLogChange{txhash: s.txHash})
 
 	log.TxHash = s.txHash
 	log.BlockHash = s.blockHash
@@ -571,13 +572,13 @@ func (s *stateDB) Copy() StateDB {
 // ===========================================================================================================
 
 func (s *stateDB) createStateObject(addr common.Address) (new *stateObject, prev *stateObject) {
-	prev := s.getStateObject(addr)
-	new := newStateObject(s, addr, NewAccount())
+	prev = s.getStateObject(addr)
+	new = newStateObject(s, addr, NewAccount())
 
 	if prev == nil {
-		s.journal.append(createObjectChange{account: &addr})
+		s.journal.append(&createObjectChange{account: &addr})
 	} else {
-		s.journal.append(resetObjectChange{prev: prev.deepCopy(s)})
+		s.journal.append(&resetObjectChange{prev: prev.deepCopy(s)})
 	}
 
 	s.setStateObject(new)

@@ -28,7 +28,31 @@ func newJournal() *journal {
 
 // append adds a new entry to the journal
 func (j *journal) append(entry journalEntry) {
-	// TODO
+	j.entries = append(j.entries, entry)
+	if addr := entry.dirtied(); addr != nil {
+		j.dirties[*addr]++
+	}
+}
+
+// revert undoes state changes along the journal by snapshot
+func (j *journal) revert(sdb *stateDB, snapshot int) {
+	for i := len(j.entries) - 1; i >= snapshot; i-- {
+		j.entries[i].revert(sdb)
+
+		// Decrease dirty count
+		if addr := j.entries[i].dirtied(); addr != nil {
+			if j.dirties[*addr]--; j.dirties[*addr] == 0 {
+				delete(j.dirties, *addr)
+			}
+		}
+	}
+	// remove snapshot
+	j.entries = j.entries[:snapshot]
+}
+
+// length returns the length of the journal
+func (j *journal) length() int {
+	return len(j.entries)
 }
 
 // define all journalEntry implement types: ---------------------------
@@ -132,4 +156,92 @@ func (ch suicideChange) dirtied() *common.Address {
 	return ch.account
 }
 
-// balanceChange TODO
+// balanceChange >>>
+func (ch balanceChange) revert(s *stateDB) {
+	obj := s.getStateObject(*ch.account)
+	if obj != nil {
+		obj.data.Balance = ch.prev
+	}
+}
+
+func (ch balanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// nonceChange >>>
+func (ch nonceChange) revert(s *stateDB) {
+	obj := s.getStateObject(*ch.account)
+	if obj != nil {
+		obj.data.Nonce = ch.prev
+	}
+}
+
+func (ch nonceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// contract storageChange >>>
+func (ch storageChange) revert(s *stateDB) {
+	if obj := s.getStateObject(*ch.account); obj != nil {
+		obj.pendingStorage[ch.key] = ch.prevalue
+	}
+}
+
+func (ch storageChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// codeChange >>>
+func (ch codeChange) revert(s *stateDB) {
+	if obj := s.getStateObject(*ch.account); obj != nil {
+		obj.code = ch.prevcode
+		obj.data.CodeHash = ch.prevcode
+		obj.dirtyCode = true
+	}
+}
+
+func (ch codeChange) dirtied() *common.Address {
+	return ch.account
+}
+
+// refundChange >>>
+func (ch refundChange) revert(s *stateDB) {
+	s.refund = ch.prev
+}
+
+func (ch refundChange) dirtied() *common.Address {
+	return nil
+}
+
+// addLogChange >>>
+func (ch addLogChange) revert(s *stateDB) {
+	logs := s.logs[ch.txhash]
+	if len(logs) == 1 {
+		delete(s.logs, ch.txhash)
+	} else {
+		s.logs[ch.txhash] = logs[:len(logs)-1]
+	}
+	s.logSize--
+}
+
+func (ch addLogChange) dirtied() *common.Address {
+	return nil
+}
+
+// accessListAddAccountChange >>>
+func (ch accessListAddAccountChange) revert(s *stateDB) {
+	s.accessList.DeleteAddress(*ch.address)
+}
+
+func (ch accessListAddAccountChange) dirtied() *common.Address {
+	return nil
+}
+
+// accessListAddSlotChange >>>
+func (ch accessListAddSlotChange) revert(s *stateDB) {
+	s.accessList.DeleteSlot(*ch.address, *ch.slot)
+}
+
+func (ch accessListAddSlotChange) dirtied() *common.Address {
+	return nil
+}

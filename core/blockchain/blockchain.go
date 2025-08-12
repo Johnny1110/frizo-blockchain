@@ -6,13 +6,13 @@ import (
 	"frizo-blockchain/common"
 	"frizo-blockchain/core/state"
 	"frizo-blockchain/core/types"
-	"frizo-blockchain/storage"
+	"frizo-blockchain/db"
 	"github.com/ethereum/go-ethereum/log"
 	"math/big"
 )
 
 type Blockchain struct {
-	db storage.Database
+	db db.Database
 
 	currentBlock *types.Block
 	currentState *state.SimpleStateDB
@@ -25,7 +25,7 @@ type Blockchain struct {
 }
 
 // Blockchain create func
-func NewBlockchain(db storage.Database, genesis *Genesis) (*Blockchain, error) {
+func NewBlockchain(db db.Database, genesis *Genesis) (*Blockchain, error) {
 	bc := &Blockchain{
 		db:          db,
 		blockCache:  make(map[common.Hash]*types.Block),

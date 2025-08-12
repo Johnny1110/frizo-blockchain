@@ -2,8 +2,7 @@ package storage
 
 import (
 	"fmt"
-	"frizo-blockchain/storage/leveldb"
-	"frizo-blockchain/storage/memory"
+	"frizo-blockchain/db"
 	"path/filepath"
 )
 
@@ -15,20 +14,20 @@ type DatabaseConfig struct {
 }
 
 type ChainDatabase struct {
-	blockDB Database // block, txn, receipt
-	stateDB Database // state,mpt-node, contract-code
-	indexDB Database // index
+	blockDB db.Database // block, txn, receipt
+	stateDB db.Database // state,mpt-node, contract-code
+	indexDB db.Database // index
 
 	config *DatabaseConfig
 }
 
-func (cdb *ChainDatabase) BlockDB() Database {
+func (cdb *ChainDatabase) BlockDB() db.Database {
 	return cdb.blockDB
 }
-func (cdb *ChainDatabase) StateDB() Database {
+func (cdb *ChainDatabase) StateDB() db.Database {
 	return cdb.stateDB
 }
-func (cdb *ChainDatabase) IndexDB() Database {
+func (cdb *ChainDatabase) IndexDB() db.Database {
 	return cdb.indexDB
 }
 
@@ -45,18 +44,18 @@ func NewChainDatabaseLevelDB(config *DatabaseConfig) (*ChainDatabase, error) {
 	indexCacheSize := config.Cache * 10 / 100 // 10%
 
 	// create block db
-	blockDB, err := leveldb.NewLevelDB(blockDir, blockCacheSize, config.Handles/3)
+	blockDB, err := NewLevelDB(blockDir, blockCacheSize, config.Handles/3)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create block database: %v", err)
 	}
 
-	stateDB, err := leveldb.NewLevelDB(stateDir, stateCacheSize, config.Handles/3)
+	stateDB, err := NewLevelDB(stateDir, stateCacheSize, config.Handles/3)
 	if err != nil {
 		_ = blockDB.Close()
 		return nil, fmt.Errorf("failed to create state database: %v", err)
 	}
 
-	indexDB, err := leveldb.NewLevelDB(indexDir, indexCacheSize, config.Handles/3)
+	indexDB, err := NewLevelDB(indexDir, indexCacheSize, config.Handles/3)
 	if err != nil {
 		_ = blockDB.Close()
 		_ = stateDB.Close()
@@ -74,9 +73,9 @@ func NewChainDatabaseLevelDB(config *DatabaseConfig) (*ChainDatabase, error) {
 // NewChainDatabaseInMemory create new chain database
 func NewChainDatabaseInMemory(config *DatabaseConfig) (*ChainDatabase, error) {
 	return &ChainDatabase{
-		blockDB: memory.NewMemoryDatabase(),
-		stateDB: memory.NewMemoryDatabase(),
-		indexDB: memory.NewMemoryDatabase(),
+		blockDB: NewMemoryDatabase(),
+		stateDB: NewMemoryDatabase(),
+		indexDB: NewMemoryDatabase(),
 		config:  config,
 	}, nil
 }

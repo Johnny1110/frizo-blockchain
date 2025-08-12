@@ -1,11 +1,11 @@
-package memory
+package storage
 
 import (
 	"bytes"
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
-	"frizo-blockchain/storage"
+	"frizo-blockchain/db"
 	"sort"
 	"sync"
 )
@@ -135,7 +135,7 @@ func (db *MemoryDatabase) Has(key []byte) (bool, error) {
 }
 
 // NewBatch 創建批量操作
-func (db *MemoryDatabase) NewBatch() storage.Batch {
+func (db *MemoryDatabase) NewBatch() db.Batch {
 	return &memBatch{
 		db:     db,
 		writes: make([]batchOp, 0),
@@ -143,7 +143,7 @@ func (db *MemoryDatabase) NewBatch() storage.Batch {
 }
 
 // NewIterator 創建迭代器
-func (db *MemoryDatabase) NewIterator(prefix []byte, start []byte) storage.Iterator {
+func (db *MemoryDatabase) NewIterator(prefix []byte, start []byte) db.Iterator {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
@@ -366,7 +366,7 @@ func (b *memBatch) ValueSize() int {
 }
 
 // Replay 重放批處理操作到另一個批處理
-func (b *memBatch) Replay(target storage.Batch) error {
+func (b *memBatch) Replay(target db.Batch) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

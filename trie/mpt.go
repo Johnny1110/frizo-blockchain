@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
-	"frizo-blockchain/storage"
+	"frizo-blockchain/db"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -81,7 +81,7 @@ func NewMPT() *ModifiedMerklePatriciaTree {
 }
 
 // NewMPTWithDB create new ModifiedMerklePatriciaTree with input DB
-func NewMPTWithDB(stateDB storage.Database, rootHash common.Hash) (*ModifiedMerklePatriciaTree, error) {
+func NewMPTWithDB(stateDB db.Database, rootHash common.Hash) (*ModifiedMerklePatriciaTree, error) {
 	mpt := &ModifiedMerklePatriciaTree{
 		root:       nil,
 		hashFunc:   defaultHashFunc,
@@ -1026,7 +1026,7 @@ func (t *ModifiedMerklePatriciaTree) decodeBranch(decoded []interface{}) (*MPTNo
 }
 
 // loadNode load node from db
-func (t *ModifiedMerklePatriciaTree) loadNode(stateDB storage.Database, hash common.Hash) (*MPTNode, error) {
+func (t *ModifiedMerklePatriciaTree) loadNode(stateDB db.Database, hash common.Hash) (*MPTNode, error) {
 	if hash == (common.Hash{}) {
 		return nil, nil
 	}

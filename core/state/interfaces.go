@@ -3,7 +3,7 @@ package state
 import (
 	"frizo-blockchain/common"
 	"frizo-blockchain/core/types"
-	"frizo-blockchain/storage"
+	"frizo-blockchain/db"
 	"math/big"
 )
 
@@ -82,7 +82,7 @@ type Database interface {
 	ContractCodeWithPrefix(addrHash, codeHash common.Hash) ([]byte, error)
 
 	// Database access
-	TrieDB() storage.Database
+	TrieDB() db.Database
 }
 
 // Trie is the interface for Merkle Patricia Trie operations
@@ -100,7 +100,7 @@ type Trie interface {
 	NodeIterator(startKey []byte) NodeIterator
 
 	// Proof generation
-	Prove(key []byte, fromLevel uint, proofDb storage.Database) error
+	Prove(key []byte, fromLevel uint, proofDb db.Database) error
 }
 
 // Revision represents a state revision point

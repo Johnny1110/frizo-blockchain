@@ -83,6 +83,7 @@ type Database interface {
 
 	// Database access
 	TrieDB() db.Database
+	Debug()
 }
 
 // Trie is the interface for Merkle Patricia Trie operations

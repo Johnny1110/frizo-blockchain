@@ -1044,6 +1044,12 @@ func (t *ModifiedMerklePatriciaTree) loadNode(stateDB db.Database, hash common.H
 	return node, nil
 }
 
+func (t *ModifiedMerklePatriciaTree) Copy() *ModifiedMerklePatriciaTree {
+	return &ModifiedMerklePatriciaTree{
+		// TODO: impl
+	}
+}
+
 func (n *MPTNode) getExtensionChild() *MPTNode {
 	if n.NodeType == EXTENSION {
 		return n.Children[0]

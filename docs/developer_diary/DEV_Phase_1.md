@@ -61,14 +61,8 @@
 
 ### 4. Storage 持久化層 ✅
 
-* DB 介面定義: /storage/interfaces/interfaces.go
-* LevelDB 實現: /storage/leveldb/leveldb.go
-* 記憶體 DB: /storage/memory/memdb.go（測試用）
-* 鏈資料庫管理: /storage/database.go
-
-<br>
-
-三層分離架構（blockDB, stateDB, indexDB）
+* LevelDB 實現: /storage/leveldb.go
+* 記憶體 DB: /storage/memdb.go（測試用）
 
 <br>
 
@@ -76,13 +70,6 @@
 
     * 區塊讀寫功能
     * 交易索引管理
-
-
-* 狀態存儲: /storage/state_store.go
-
-    * MPT 節點持久化
-    * 合約代碼存儲
-
 
 * 存儲架構: /storage/schema.go
 
@@ -116,16 +103,17 @@
 
 <br>
 
-### 6. 簡化版狀態管理(單元測試用) ✅
+### 6. state 管理 (初版) ✅
 
-* SimpleStateDB: core/state/simple_state.go
+* 目錄: core/state/*
 
-    * 賬戶餘額管理
-    * Nonce 追蹤
-    * Snapshot/Revert 機制
-    * 狀態根計算
-
-
+  * state_db.go: state DB 管理帳戶的入口
+  * account.go: 帳戶資料結構
+  * state_object.go: account 對應 levelDB 的資料儲存結構
+  * journal.go: stateDB 的 Snapshot/Revert/Commit 機制
+  * cache.go: 簡易版快取機制
+  * access_list.go: 等到第二階段再實作
+  * 未完成的項目 (TODO): 目前 OpenTrie 會把整棵樹載入到 mpt 中，這樣做在帳戶資料量大的時候會有問題，需要優化 (可能是 mpt 或者 stateDB 做 lazyLoad 機制)
 
 <br>
 
@@ -167,11 +155,16 @@
 
 ## 二、未完成但必需的功能（Phase-1）
 
-### 1. MPT 與 State 深度整合 🔴
+### 1. Blockchain 主體實作 🔴
 
-* 將 SimpleStateDB 與 MPT 完全整合
-  實現真正的狀態樹管理
-* 支援狀態證明生成
+* 區塊插入與驗證
+* 狀態轉換執行
+* 鏈狀態管理
+* 讀取 genesis.json
+* 預分配賬戶設置
+* 默認創世配置
+* 交易執行邏輯
+* 收據生成
 
 <br>
 

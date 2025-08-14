@@ -14,12 +14,12 @@ core/blockchain/
 ├── blockchain.go           # 主鏈管理（精簡）
 ├── chain_manager.go        # 鏈狀態管理
 ├── block_validator.go      # 區塊驗證邏輯
-├── state_processor.go      # 狀態轉換處理 ✅
+├── state_processor.go      # 狀態轉換處理
 ├── block_processor.go      # 區塊處理流程
 ├── tx_processor.go         # 交易處理邏輯
 ├── chain_indexer.go        # 鏈索引管理
 ├── chain_maker.go          # 區塊生產
-├── genesis.go              # 創世區塊 ✅
+├── genesis.go              # 創世區塊
 ├── events.go               # 事件系統
 ├── metrics.go              # 性能指標
 │

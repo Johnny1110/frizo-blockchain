@@ -19,23 +19,23 @@
 
 * 區塊結構: core/types/block.go
 
-    * Header、Body 結構完整
-    * 區塊驗證邏輯實現
-    * RLP 編碼支援
+  * Header、Body 結構完整
+  * 區塊驗證邏輯實現
+  * RLP 編碼支援
 
 
 * 交易結構: core/types/transaction.go
 
-    * 支援簽名驗證
-    * From `Ecrecover()` 地址恢復
-    * Gas 計算機制
-    * 交易緩存優化
+  * 支援簽名驗證
+  * From `Ecrecover()` 地址恢復
+  * Gas 計算機制
+  * 交易緩存優化
 
 
 * 收據結構: core/types/receipt.go
 
-    * 交易執行結果記錄
-    * Gas 使用追蹤
+  * 交易執行結果記錄
+  * Gas 使用追蹤
 
 
 
@@ -45,15 +45,15 @@
 
 * Merkle Tree: /trie/merkle.go
 
-    * 完整的樹構建邏輯
-    * 證明生成與驗證
+  * 完整的樹構建邏輯
+  * 證明生成與驗證
 
 
 * Modified Merkle Patricia Tree (MPT):
 
-    * /trie/mpt.go - 核心樹結構，支援 RLP 編碼
-    * /trie/mpt_proof.go - 完整的證明功能
-    * /trie/mpt_tool.go - Debug 工具
+  * /trie/mpt.go - 核心樹結構，支援 RLP 編碼
+  * /trie/mpt_proof.go - 完整的證明功能
+  * /trie/mpt_tool.go - Debug 工具
 
 
 
@@ -68,52 +68,74 @@
 
 * 區塊存儲: /storage/block_store.go
 
-    * 區塊讀寫功能
-    * 交易索引管理
+  * 區塊讀寫功能
+  * 交易索引管理
 
 * 存儲架構: /storage/schema.go
 
-    * 鍵值編碼規範
-
-
-
-<br>
-5. 區塊鏈核心邏輯（待完成）⚠️
-
-* Blockchain 主體: core/blockchain/blockchain.go
-
-    * 區塊插入與驗證
-    * 狀態轉換執行
-    * 鏈狀態管理
-
-
-* 創世區塊: core/blockchain/genesis.go
-
-    * 讀取 genesis.json
-    * 預分配賬戶設置
-    * 默認創世配置
-
-
-* 狀態處理器: core/blockchain/state_processor.go
-
-    * 交易執行邏輯
-    * 收據生成
+  * 鍵值編碼規範
 
 
 
 <br>
 
-### 6. state 管理 (初版) ✅
+### 5. 區塊鏈核心邏輯（部分完成）⚠️
+
+* Blockchain 主體: core/blockchain/blockchain.go ⚠️
+
+  * ✅ 基本區塊鏈資料結構
+  * ✅ 區塊存儲與查詢
+  * ✅ 狀態管理整合
+  * 🔴 區塊驗證邏輯
+  * 🔴 分叉處理
+
+
+* 創世區塊: core/blockchain/genesis.go ⚠️
+
+  * ✅ 默認創世區塊配置
+  * ✅ 預分配賬戶設置
+  * 🔴 從 genesis.json 讀取配置
+
+
+* 狀態處理器: core/blockchain/state_processor.go ✅
+
+  * ✅ 交易執行邏輯
+  * ✅ 收據生成
+  * ✅ Gas 計算與扣除
+
+* 區塊生產者: core/blockchain/block_producer.go ✅
+
+  * ✅ 區塊生成邏輯
+  * ✅ 交易打包
+  * ✅ 狀態根計算
+
+* 交易池: core/blockchain/pool.go ✅
+
+  * ✅ 基本交易池結構
+  * ✅ 交易添加與獲取
+  * 🔴 交易排序與驗證
+  * 🔴 內存管理與驅逐策略
+
+
+
+<br>
+
+### 6. State 管理 ✅
 
 * 目錄: core/state/*
 
-  * state_db.go: state DB 管理帳戶的入口
-  * account.go: 帳戶資料結構
-  * state_object.go: account 對應 levelDB 的資料儲存結構
-  * journal.go: stateDB 的 Snapshot/Revert/Commit 機制
-  * cache.go: 簡易版快取機制
-  * access_list.go: 等到第二階段再實作
-  * 未完成的項目 (TODO): 目前 OpenTrie 會把整棵樹載入到 mpt 中，這樣做在帳戶資料量大的時候會有問題，需要優化 (可能是 mpt 或者 stateDB 做 lazyLoad 機制)
+  * state_db.go: state DB 管理帳戶的入口 ✅
+  * account.go: 帳戶資料結構 ✅
+  * state_object.go: account 對應 levelDB 的資料儲存結構 ✅
+  * journal.go: stateDB 的 Snapshot/Revert/Commit 機制 ✅
+  * cache.go: 簡易版快取機制 ✅
+  * interfaces.go: StateDB 介面定義 ✅
+  * access_list.go: EIP-2929 訪問列表（Phase-2 實作）🔴
+
+* 需要加強的部分:
+  * 🔴 MPT 的 lazyLoad 機制優化（目前會載入整棵樹）
+  * 🔴 狀態同步優化
+  * 🔴 Pruning 機制
 
 <br>
 
@@ -121,20 +143,20 @@
 
 * 通用類型: common/types.go
 
-    * Address、Hash 類型定義
-    * RLP 編碼工具
+  * Address、Hash 類型定義
+  * RLP 編碼工具
 
 
 * 錯誤定義: common/errors.go
 
-    * 完整的錯誤類型系統
+  * 完整的錯誤類型系統
 
 
 * 常量定義: common/constants.go
 
-    * 鏈參數配置
-    * Gas 費用設置
-    * 網路常量
+  * 鏈參數配置
+  * Gas 費用設置
+  * 網路常量
 
 
 
@@ -186,9 +208,9 @@
 
   實現要點：
 
-    * 授權節點管理
-    * 輪流出塊機制
-    * 簽名驗證
+  * 授權節點管理
+  * 輪流出塊機制
+  * 簽名驗證
 
 <br>
 
@@ -237,29 +259,15 @@
 ### Phase 1-A: 核心功能完善
 
 <br>
+<br>
 
-1. State 與 MPT 整合
-```go
-// 需要實現的介面
-type StateDB interface {
-    GetState(addr Address, key Hash) Hash
-    SetState(addr Address, key Hash, value Hash)
-    GetCode(addr Address) []byte
-    SetCode(addr Address, code []byte)
-    Commit() (Hash, error)
-    Database() Database
-}
-```
+1. 完善 blockchain.go 相關產塊功能
 
 <br>
 
-2. 完善 blockchain.go 相關產塊功能
-
-<br>
-
-3. 交易池實現
+2. 交易池實現
 ```go
-3. type TxPool struct {
+type TxPool struct {
     pending map[Address]TxList  // 待打包交易
     queue   map[Address]TxList  // 排隊交易
     config  TxPoolConfig       // 配置參數
@@ -328,16 +336,16 @@ Fast Sync 簡化版：
 
 * 單節點測試：
 
-    * 創世區塊初始化
-    * 交易執行與狀態更新
-    * 區塊生成與持久化
+  * 創世區塊初始化
+  * 交易執行與狀態更新
+  * 區塊生成與持久化
 
 
 * 多節點測試：
 
-    * 3 節點 PoA 網路
-    * 交易廣播與同步
-    * 分叉處理
+  * 3 節點 PoA 網路
+  * 交易廣播與同步
+  * 分叉處理
 
 
 壓力測試：

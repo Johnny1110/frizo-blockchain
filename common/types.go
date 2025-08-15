@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
+	"time"
 )
 
 const (
@@ -183,7 +184,18 @@ type GenesisBlock struct {
 type ChainConfig struct {
 	ChainID *big.Int // Chain ID, for sign txn
 
+	// Genesis
+	GenesisHash   common.Hash
 	ConsensusType string // "pos" or "poa"
+
+	// Block
+	BlockTime    time.Duration
+	MaxBlockSize uint64
+	MaxBlockGas  uint64
+
+	// Transaction
+	MinGasPrice *big.Int
+	MaxTxSize   uint64
 
 	// PoS setup
 	MinStake          *big.Int // min stake value (32 or 128)
@@ -194,14 +206,4 @@ type ChainConfig struct {
 
 	// Gas setup
 	InitialGasLimit uint64 // init gas limit
-}
-
-// State interface
-type State interface {
-	GetBalance(addr common.Address) *big.Int
-	GetNonce(addr common.Address) uint64
-	GetCode(addr common.Address) []byte
-	SetBalance(addr common.Address, amount *big.Int)
-	SetNonce(addr common.Address, nonce uint64)
-	SetCode(addr common.Address, code []byte)
 }

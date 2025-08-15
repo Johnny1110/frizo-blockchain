@@ -272,6 +272,38 @@ func (b *Block) Validate() error {
 	return nil
 }
 
+// Body etc.
+// Body get txn * uncle data without header
+func (b *Block) Body() *Body {
+	if b == nil {
+		return nil
+	}
+	// TODO: not support uncle yet.
+	return NewBody(b.transactions, nil)
+}
+
+// apply txn and uncle data into block
+func (b *Block) WithBody(body *Body) *Block {
+	if body == nil {
+		return b
+	}
+	// setup txns
+	if len(body.Transactions) > 0 {
+		b.transactions = make(Transactions, len(body.Transactions))
+		copy(b.transactions, body.Transactions)
+		// recalculate header hash
+		b.header.TxHashRoot = b.calculateTxHash()
+	}
+
+	// TODO: not support uncle yet.
+	return b
+}
+
+func (b *Block) Uncles() []*Header {
+	// TODO: not support uncle yet.
+	panic("uncles is unimplemented")
+}
+
 func (b *Block) String() string {
 	return fmt.Sprintf("Block(#%v): Size: %v, Hash: %s, TxCount: %d, GasUsed: %d",
 		b.Number(),

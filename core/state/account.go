@@ -11,7 +11,7 @@ var (
 	EmptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
 
 	// emptyCodeHash is the hash of empty code
-	emptyCodeHash = common.Keccak256Hash(nil).Bytes()
+	emptyCodeHash = common.Keccak256Hash(nil)
 )
 
 // State Account
@@ -21,7 +21,7 @@ type Account struct {
 
 	// contract address usage
 	Root     common.Hash // merkle root of the contract storage trie
-	CodeHash []byte
+	CodeHash common.Hash
 }
 
 func NewAccount() *Account {
@@ -38,7 +38,7 @@ func (a *Account) Copy() *Account {
 		Nonce:    a.Nonce,
 		Balance:  new(big.Int).Set(a.Balance),
 		Root:     a.Root,
-		CodeHash: common.CopyBytes(a.CodeHash),
+		CodeHash: common.BytesToHash(a.CodeHash.Bytes()),
 	}
 }
 

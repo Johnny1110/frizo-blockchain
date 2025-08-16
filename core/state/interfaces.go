@@ -3,7 +3,7 @@ package state
 import (
 	"frizo-blockchain/common"
 	"frizo-blockchain/core/types"
-	"frizo-blockchain/db"
+	"frizo-blockchain/storage"
 	"math/big"
 )
 
@@ -16,12 +16,6 @@ type StateDB interface {
 	GetBalance(address common.Address) *big.Int
 	GetNonce(address common.Address) uint64
 	SetNonce(address common.Address, nonce uint64)
-
-	// Contract
-	GetCodeHash(address common.Address) common.Hash
-	GetCode(address common.Address) []byte
-	SetCode(address common.Address, code []byte)
-	GetCodeSize(address common.Address) int
 
 	// Contract Storage Access
 	GetState(addr common.Address, hash common.Hash) common.Hash
@@ -61,29 +55,21 @@ type StateDB interface {
 
 	// Debugging and tools
 	ForEachContractStorage(common.Address, func(common.Hash, common.Hash) bool) error
-	Copy() StateDB
-	Database() Database
+	//Copy() StateDB
+	Database() storage.IKVStore
+
+	// Contract
+	GetCodeHash(address common.Address) common.Hash
+	GetCode(address common.Address) []byte
+	SetCode(address common.Address, code []byte)
+	GetCodeSize(address common.Address) int
+
+	// DEBUG
+	//Debug()
 
 	// Additional helper methods
 	Reset(root common.Hash) error
 	Error() error
-}
-
-// Database wraps access to tries and contract code
-type Database interface {
-	// Trie operations
-	OpenTrie(root common.Hash) (Trie, error)
-	OpenStorageTrie(addrHash, root common.Hash) (Trie, error)
-	CopyTrie(Trie) Trie
-
-	// Contract code operations
-	ContractCode(addrHash, codeHash common.Hash) ([]byte, error)
-	ContractCodeSize(addrHash, codeHash common.Hash) (int, error)
-	ContractCodeWithPrefix(addrHash, codeHash common.Hash) ([]byte, error)
-
-	// Database access
-	TrieDB() db.Database
-	Debug()
 }
 
 // Trie is the interface for Merkle Patricia Trie operations
@@ -97,11 +83,9 @@ type Trie interface {
 	Commit() (common.Hash, error)
 	Hash() common.Hash
 
-	// Iterator
-	NodeIterator(startKey []byte) NodeIterator
-
 	// Proof generation
-	Prove(key []byte, fromLevel uint, proofDb db.Database) error
+	Prove(key []byte, fromLevel uint, proofDb storage.IKVStore) error
+	Copy() Trie
 }
 
 // Revision represents a state revision point

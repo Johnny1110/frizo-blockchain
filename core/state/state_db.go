@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"frizo-blockchain/common"
 	"frizo-blockchain/core/types"
+	"frizo-blockchain/storage"
 	"math/big"
 	"sort"
 	"sync"
@@ -11,7 +12,7 @@ import (
 
 // stateDB is the main implementation of StateDB interface
 type stateDB struct {
-	db   Database
+	db   storage.IKVStore
 	trie Trie
 
 	// cache
@@ -42,12 +43,15 @@ type stateDB struct {
 	// access list
 	accessList *accessList
 
+	codeSizeCache *lruCache // Cache for contract code size
+	codeCache     *lruCache // Cache for contract code
+
 	mu sync.RWMutex
 }
 
 // NewStateDB create new stateDB
-func NewStateDB(db Database, root common.Hash) (StateDB, error) {
-	trie, err := db.OpenTrie(root)
+func NewStateDB(db storage.IKVStore, root common.Hash) (StateDB, error) {
+	trie, err := OpenTrie(db, root)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +79,7 @@ func (s *stateDB) Reset(root common.Hash) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	tr, err := s.db.OpenTrie(root)
+	tr, err := OpenTrie(s.db, root)
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,7 @@ func (s *stateDB) Reset(root common.Hash) error {
 	return nil
 }
 
-func (s *stateDB) Database() Database {
+func (s *stateDB) Database() storage.IKVStore {
 	return s.db
 }
 
@@ -166,7 +170,7 @@ func (s *stateDB) GetCodeHash(addr common.Address) common.Hash {
 
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return common.BytesToHash(obj.CodeHash())
+		return obj.CodeHash()
 	}
 
 	return common.Hash{}
@@ -177,7 +181,7 @@ func (s *stateDB) GetCode(addr common.Address) []byte {
 	defer s.mu.RUnlock()
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return obj.Code(s.db)
+		return obj.Code()
 	}
 
 	return nil
@@ -198,7 +202,7 @@ func (s *stateDB) GetCodeSize(addr common.Address) int {
 	defer s.mu.RUnlock()
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return obj.CodeSize(s.db)
+		return obj.CodeSize()
 	}
 	return 0
 }
@@ -210,7 +214,7 @@ func (s *stateDB) GetState(addr common.Address, hash common.Hash) common.Hash {
 
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return obj.GetState(s.db, hash)
+		return obj.GetState(hash)
 	}
 
 	return common.Hash{}
@@ -507,64 +511,6 @@ func (s *stateDB) ForEachContractStorage(addr common.Address, cb func(key, value
 		return nil
 	}
 	return obj.ForEachContractStorage(cb)
-}
-
-// Copy creates a deep copy of the state
-func (s *stateDB) Copy() StateDB {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	// Create new state
-	state := &stateDB{
-		db:                  s.db,
-		trie:                s.db.CopyTrie(s.trie),
-		stateObjects:        make(map[common.Address]*stateObject),
-		stateObjectsPending: make(map[common.Address]struct{}),
-		stateObjectsDirty:   make(map[common.Address]struct{}),
-		refund:              s.refund,
-		logs:                make(map[common.Hash][]*types.Log),
-		logSize:             s.logSize,
-		journal:             newJournal(),
-		accessList:          s.accessList.Copy(),
-	}
-
-	// Copy all state objects
-
-	// (journal.dirties)
-	for addr := range s.journal.dirties {
-		if obj, exist := s.stateObjects[addr]; exist {
-			state.stateObjects[addr] = obj.deepCopy(state)
-			state.stateObjectsDirty[addr] = struct{}{}
-		}
-	}
-
-	// (pending)
-	for addr := range s.stateObjectsPending {
-		if obj, exist := s.stateObjects[addr]; exist {
-			state.stateObjects[addr] = obj.deepCopy(state)
-		}
-		state.stateObjectsPending[addr] = struct{}{}
-	}
-
-	// (dirty)
-	for addr := range s.stateObjectsDirty {
-		if obj, exist := state.stateObjects[addr]; exist {
-			state.stateObjects[addr] = obj.deepCopy(state)
-		}
-		state.stateObjectsDirty[addr] = struct{}{}
-	}
-
-	// copy logs
-	for hash, logs := range s.logs {
-		cpy := make([]*types.Log, len(logs))
-		for i, log := range logs {
-			cpy[i] = new(types.Log)
-			*cpy[i] = *log
-		}
-		state.logs[hash] = cpy
-	}
-
-	return state
 }
 
 // ===========================================================================================================

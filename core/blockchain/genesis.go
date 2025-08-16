@@ -35,6 +35,20 @@ type GenesisAccount struct {
 	Storage map[common.Hash]common.Hash // TODO: Phase-1 not support
 }
 
+// GenesisBlock GenesisBlock config
+type GenesisBlock struct {
+	Timestamp  uint64
+	ParentHash common.Hash
+	ExtraData  []byte
+	GasLimit   uint64
+
+	// Alloc pre set account
+	Alloc map[common.Address]GenesisAccount
+
+	// chain config
+	Config *ChainConfig
+}
+
 // DefaultGenesis default genesis setup
 func DefaultGenesis() *Genesis {
 	return &Genesis{
@@ -48,6 +62,16 @@ func DefaultGenesis() *Genesis {
 				Nonce:   1,
 			},
 			common.HexToAddress("0xA2D969E82524001Cb6a2357dBF5922B04aD2FCD8"): {
+				Balance: new(big.Int).Mul(big.NewInt(100), common.Ether), // 100 ETH
+				Nonce:   0,
+			},
+			// Kai's address
+			common.HexToAddress("0x08bC5CB835c658f71A551c241709535Bcd519059"): {
+				Balance: new(big.Int).Mul(big.NewInt(100), common.Ether), // 100 ETH
+				Nonce:   0,
+			},
+			// Harry's address
+			common.HexToAddress("0xaEc403Ac73a363e007dF97513F547E18189EaDaB"): {
 				Balance: new(big.Int).Mul(big.NewInt(100), common.Ether), // 100 ETH
 				Nonce:   0,
 			},

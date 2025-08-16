@@ -207,7 +207,7 @@ func Test_journal_complex_commit(t *testing.T) {
 }
 
 func mockStateDB(t *testing.T) StateDB {
-	db := NewTrieDatabase(storage.NewMemoryDatabase())
+	db := NewTrieDatabase(storage.NewInMemoryKVStore())
 	rootHash := common.Hash{}
 	sdb, err := NewStateDB(db, rootHash)
 	assert.Nil(t, err)

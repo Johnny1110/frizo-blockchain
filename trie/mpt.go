@@ -5,9 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"frizo-blockchain/common"
-	"frizo-blockchain/db"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+type INodeLoader interface {
+	Get(key []byte) ([]byte, error)
+}
 
 // Modified Merkle Patricia Tree (MPT)
 
@@ -81,7 +84,7 @@ func NewMPT() *ModifiedMerklePatriciaTree {
 }
 
 // NewMPTWithDB create new ModifiedMerklePatriciaTree with input DB
-func NewMPTWithDB(stateDB db.Database, rootHash common.Hash) (*ModifiedMerklePatriciaTree, error) {
+func NewMPTWithDB(nodeLoader INodeLoader, rootHash common.Hash) (*ModifiedMerklePatriciaTree, error) {
 	mpt := &ModifiedMerklePatriciaTree{
 		root:       nil,
 		hashFunc:   defaultHashFunc,
@@ -89,7 +92,7 @@ func NewMPTWithDB(stateDB db.Database, rootHash common.Hash) (*ModifiedMerklePat
 	}
 	if rootHash != (common.Hash{}) {
 		// load node from db
-		rootNode, err := mpt.loadNode(stateDB, rootHash)
+		rootNode, err := mpt.loadNode(nodeLoader, rootHash)
 		if err != nil {
 			return nil, errors.New("failed to create MPT with database - load node failed")
 		}
@@ -1026,12 +1029,12 @@ func (t *ModifiedMerklePatriciaTree) decodeBranch(decoded []interface{}) (*MPTNo
 }
 
 // loadNode load node from db
-func (t *ModifiedMerklePatriciaTree) loadNode(stateDB db.Database, hash common.Hash) (*MPTNode, error) {
+func (t *ModifiedMerklePatriciaTree) loadNode(loader INodeLoader, hash common.Hash) (*MPTNode, error) {
 	if hash == (common.Hash{}) {
 		return nil, nil
 	}
 
-	encoded, err := stateDB.Get(hash.Bytes())
+	encoded, err := loader.Get(hash.Bytes())
 	if err != nil {
 		return nil, err
 	}

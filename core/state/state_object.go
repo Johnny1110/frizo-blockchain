@@ -101,17 +101,17 @@ func (o *stateObject) SetNonce(nonce uint64) {
 }
 
 // Code returns the contract code
-func (o *stateObject) Code(db Database) Code {
+func (o *stateObject) Code() Code {
 	if o.code != nil {
 		return o.code
 	}
 
-	if bytes.Equal(o.CodeHash(), emptyCodeHash) {
+	if bytes.Equal(o.CodeHash().Bytes(), emptyCodeHash.Bytes()) {
 		return nil
 	}
 
 	// Get contractCode from db (addr_hash, codeHash)
-	code, err := db.ContractCode(o.addrHash, common.BytesToHash(o.CodeHash()))
+	code, err := o.db.db.Get(codeKey(o.CodeHash()))
 	if err != nil {
 		o.setErr(fmt.Errorf("failed to get code for address %v: %v", o.addrHash, err))
 	}
@@ -120,40 +120,35 @@ func (o *stateObject) Code(db Database) Code {
 	return code
 }
 
-func (o *stateObject) CodeSize(db Database) int {
+func (o *stateObject) CodeSize() int {
 	if o.code != nil {
 		return len(o.code)
 	}
-
-	if bytes.Equal(o.CodeHash(), emptyCodeHash) {
+	if bytes.Equal(o.CodeHash().Bytes(), emptyCodeHash.Bytes()) {
 		return 0
 	}
-
-	size, err := db.ContractCodeSize(o.addrHash, common.BytesToHash(o.CodeHash()))
-	if err != nil {
-		o.setErr(fmt.Errorf("failed to get code size for address %v: %v", o.addrHash, err))
-	}
-	return size
+	code := o.Code()
+	return len(code)
 }
 
 func (o *stateObject) SetCode(codeHash common.Hash, code []byte) {
-	prevcode := o.Code(o.db.db)
+	prevcode := o.Code()
 	o.db.journal.append(codeChange{
 		account:  &o.address,
-		prevhash: common.BytesToHash(o.CodeHash()),
+		prevhash: o.CodeHash(),
 		prevcode: prevcode,
 	})
 
 	o.code = code
-	o.data.CodeHash = codeHash.Bytes()
+	o.data.CodeHash = codeHash
 	o.dirtyCode = true
 }
 
-func (o *stateObject) CodeHash() []byte {
+func (o *stateObject) CodeHash() common.Hash {
 	return o.data.CodeHash
 }
 
-func (o *stateObject) GetState(db Database, key common.Hash) common.Hash {
+func (o *stateObject) GetState(key common.Hash) common.Hash {
 	// check from pending contract storage
 	if val, pending := o.pendingStorage[key]; pending {
 		return val
@@ -295,7 +290,7 @@ func (o *stateObject) markSuicide() {
 func (o *stateObject) empty() bool {
 	return o.data.Nonce == 0 &&
 		o.data.Balance.Sign() == 0 &&
-		bytes.Equal(o.data.CodeHash, emptyCodeHash)
+		bytes.Equal(o.data.CodeHash.Bytes(), emptyCodeHash.Bytes())
 }
 
 // finalise: storage from pending to dirty
@@ -313,7 +308,7 @@ func (o *stateObject) deepCopy(db *stateDB) *stateObject {
 	obj := newStateObject(db, o.address, o.data.Copy())
 	// copy trie
 	if o.trie != nil {
-		obj.trie = db.db.CopyTrie(o.trie)
+		obj.trie = o.trie.Copy()
 	}
 	// storage code and storage stuff
 	obj.code = o.code
@@ -331,13 +326,7 @@ func (o *stateObject) setErr(err error) {
 	o.dbErr = err
 }
 
-type NodeIterator interface {
-	Next(bool) bool
-	Error() error
-	Hash() common.Hash
-	Parent() common.Hash
-	Path() []byte
-	Leaf() bool
-	LeafKey() []byte
-	LeafBlob() []byte
+// Helper function to generate code storage key
+func codeKey(hash common.Hash) []byte {
+	return append([]byte("code-"), hash.Bytes()...)
 }

@@ -60,11 +60,6 @@ func (t *trieMPT) Hash() common.Hash {
 	return t.mpt.GetRoot()
 }
 
-func (t *trieMPT) NodeIterator(startKey []byte) NodeIterator {
-	//TODO implement me
-	panic("implement me")
-}
-
 // Prove generates a merkle proof for a key
 func (t *trieMPT) Prove(key []byte, fromLevel uint, proofDb storage.IKVStore) error {
 	proof, err := t.mpt.GenerateProof(key)
@@ -81,4 +76,8 @@ func (t *trieMPT) Prove(key []byte, fromLevel uint, proofDb storage.IKVStore) er
 	}
 
 	return nil
+}
+
+func (t *trieMPT) Copy() Trie {
+	return &trieMPT{}
 }

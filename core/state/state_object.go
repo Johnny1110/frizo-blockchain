@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"frizo-blockchain/common"
+	"frizo-blockchain/storage"
 	"math/big"
 )
 
@@ -33,6 +34,14 @@ type stateObject struct {
 	dirtyCode bool // if the code was updated
 	suicided  bool
 	deleted   bool
+}
+
+func (s *stateObject) getKVStore() (storage.IKVStore, error) {
+	kvs := s.db.db
+	if s.trie == nil {
+		return nil, fmt.Errorf("kv store not initialized in state object")
+	}
+	return kvs, nil
 }
 
 // newStateObject create a state object
@@ -160,27 +169,27 @@ func (o *stateObject) GetState(key common.Hash) common.Hash {
 	}
 
 	// load from trie
-	val := o.getState(db, key)
+	val := o.getState(key)
 	// store into cache
 	o.originStorage[key] = val
 	return val
 }
 
 // GetCommittedState returns the committed value
-func (o *stateObject) GetCommittedState(db Database, hash common.Hash) common.Hash {
+func (o *stateObject) GetCommittedState(hash common.Hash) common.Hash {
 	// check origin state
 	if val, cached := o.originStorage[hash]; cached {
 		return val
 	}
 	// load from trie
-	val := o.getState(db, hash)
+	val := o.getState(hash)
 	o.originStorage[hash] = val
 	return val
 }
 
 // SetState sets a value in the storage trie
-func (o *stateObject) SetState(db Database, key common.Hash, value common.Hash) {
-	preVal := o.GetState(db, key)
+func (o *stateObject) SetState(key common.Hash, value common.Hash) {
+	preVal := o.GetState(key)
 	if preVal == value {
 		return
 	}
@@ -194,43 +203,25 @@ func (o *stateObject) SetState(db Database, key common.Hash, value common.Hash) 
 	o.pendingStorage[key] = value
 }
 
-// ForEachContractStorage iterates over the storage
-func (o *stateObject) ForEachContractStorage(cb func(key common.Hash, value common.Hash) bool) error {
-	// 1. iterate over pending storage
-	for key, value := range o.pendingStorage {
-		if !cb(key, value) {
-			return nil
-		}
-	}
-
-	// 2. iterate over trie
-	it := o.trie.NodeIterator(nil)
-	for it.Next(true) {
-		key := common.BytesToHash(o.trie.Hash().Bytes())
-		if _, pending := o.pendingStorage[key]; !pending {
-			if !cb(key, common.BytesToHash(it.LeafBlob())) {
-				return nil
-			}
-		}
-	}
-	return it.Error()
-}
-
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // <private> -------------------------------------------------------------------------
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 // updateRoot updates the storage root
-func (o *stateObject) updateRoot(db Database) {
-	o.updateTrie(db)
+func (o *stateObject) updateRoot() {
+	o.updateTrie()
 	o.data.Root = o.trie.Hash()
 }
 
 // updateTrie updates the storage trie
-func (o *stateObject) updateTrie(db Database) Trie {
+func (o *stateObject) updateTrie() Trie {
 	o.finalise() // move pending to dirty.
-
-	trie := o.getTrie(db)
+	source, err := o.getKVStore()
+	if err != nil {
+		o.dbErr = err
+		return nil
+	}
+	trie := o.getTrie(source)
 	for key, val := range o.dirtyStorage {
 		delete(o.dirtyStorage, key)
 		// delete if val is zero
@@ -247,12 +238,12 @@ func (o *stateObject) updateTrie(db Database) Trie {
 }
 
 // getTrie returns the contract storage trie
-func (o *stateObject) getTrie(db Database) Trie {
+func (o *stateObject) getTrie(source storage.IKVStore) Trie {
 	if o.trie == nil {
-		trie, err := db.OpenStorageTrie(o.addrHash, o.data.Root)
+		trie, err := OpenStorageTrie(source, o.addrHash, o.data.Root)
 		if err != nil {
 			// open trie with empty hash root
-			trie, err = db.OpenStorageTrie(o.addrHash, common.Hash{})
+			trie, err = OpenStorageTrie(source, o.addrHash, common.Hash{})
 			if err != nil {
 				o.setErr(fmt.Errorf("failed to open storage trie: %v", err))
 			}
@@ -263,7 +254,13 @@ func (o *stateObject) getTrie(db Database) Trie {
 }
 
 // getState retrieves a value from the storage trie
-func (o *stateObject) getState(db Database, key common.Hash) common.Hash {
+func (o *stateObject) getState(key common.Hash) common.Hash {
+	db, err := o.getKVStore()
+	if err != nil {
+		o.setErr(err)
+		return common.Hash{}
+	}
+
 	trie := o.getTrie(db)
 	encoded, err := trie.TryGet(key.Bytes())
 	if err != nil {

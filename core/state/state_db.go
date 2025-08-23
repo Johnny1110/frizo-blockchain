@@ -227,7 +227,7 @@ func (s *stateDB) SetState(addr common.Address, key, value common.Hash) {
 
 	obj := s.getOrNewStateObject(addr)
 	if obj != nil {
-		obj.SetState(s.db, key, value)
+		obj.SetState(key, value)
 	}
 }
 
@@ -238,7 +238,7 @@ func (s *stateDB) GetCommittedState(addr common.Address, hash common.Hash) commo
 
 	obj := s.getStateObject(addr)
 	if obj != nil {
-		return obj.GetCommittedState(s.db, hash)
+		return obj.GetCommittedState(hash)
 	}
 
 	return common.Hash{}
@@ -503,14 +503,7 @@ func (s *stateDB) IsSlotInAccessList(addr common.Address, slot common.Hash) (add
 
 // ForEachContractStorage iterates over the storage of an account
 func (s *stateDB) ForEachContractStorage(addr common.Address, cb func(key, value common.Hash) bool) error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	obj := s.getStateObject(addr)
-	if obj == nil {
-		return nil
-	}
-	return obj.ForEachContractStorage(cb)
+	return fmt.Errorf("not yet implemented")
 }
 
 // ===========================================================================================================

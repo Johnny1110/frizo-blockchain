@@ -61,8 +61,8 @@ type Log struct {
 	// -
 	Topics []common.Hash `json:"topics"`
 
-	// Data non-index log data (store event non-index param)
-	Data []byte `json:"data"`
+	// Data non-index log Data (store event non-index param)
+	Data []byte `json:"Data"`
 
 	// for query usage:
 	BlockNumber uint64      `json:"blockNumber,omitempty"`
@@ -158,7 +158,7 @@ func (r *Receipt) Encode() []byte {
 // DecodeToReceipt decode RLP bytes to Receipt
 func DecodeToReceipt(encoded []byte) (*Receipt, error) {
 	if len(encoded) == 0 {
-		return nil, errors.New("empty encoded receipt data")
+		return nil, errors.New("empty encoded receipt Data")
 	}
 
 	var decoded []interface{}
@@ -251,9 +251,9 @@ func DecodeToReceipt(encoded []byte) (*Receipt, error) {
 // Bloom 2048 decimal bloom filter
 type Bloom [common.BloomBytes]byte
 
-// Add add data to bloom
+// Add add Data to bloom
 func (b *Bloom) Add(data []byte) {
-	// mapping data to bit map
+	// mapping Data to bit map
 	hash := crypto.Keccak256(data)
 	for i := 0; i < 3; i++ { // do 3 times hash
 		// 1. combined hash[i], hash[i+1] to 2 bytes as p1

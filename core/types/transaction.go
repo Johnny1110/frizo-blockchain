@@ -16,8 +16,8 @@ import (
 type Transaction struct {
 	enableCache bool
 
-	// txn basic data
-	data txdata
+	// txn basic Data
+	Data Txdata
 
 	// cache value（optimized performance）
 	hash atomic.Value // tx_hash
@@ -25,10 +25,10 @@ type Transaction struct {
 	from atomic.Value // from address
 }
 
-// txdata txn core data structure
+// Txdata txn core Data structure
 // support serialize and un-serialize
-type txdata struct {
-	chainId *big.Int
+type Txdata struct {
+	ChainId *big.Int
 	// sender's txn nonce
 	AccountNonce uint64 `json:"nonce"`
 
@@ -47,7 +47,7 @@ type txdata struct {
 	// Amount txn amount/value（wei）
 	Amount *big.Int `json:"value"`
 
-	// Payload txn data
+	// Payload txn Data
 	// - value transfer: usually empty
 	// - contract creation: contract bytecode
 	// - contract call: func selector and params
@@ -71,9 +71,9 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		gasPrice = new(big.Int)
 	}
 
-	// only create txdata
-	d := txdata{
-		chainId:      big.NewInt(common.ChainID),
+	// only create Txdata
+	d := Txdata{
+		ChainId:      big.NewInt(common.ChainID),
 		AccountNonce: nonce,
 		Recipient:    to,
 		Amount:       new(big.Int).Set(amount),
@@ -83,7 +83,7 @@ func NewTransaction(nonce uint64, to *common.Address, amount *big.Int, gasLimit 
 		Payload:      data,
 	}
 
-	return &Transaction{data: d, enableCache: common.TxnCacheSwitch}
+	return &Transaction{Data: d, enableCache: common.TxnCacheSwitch}
 }
 
 // NewContractCreation create a new contract creation txn
@@ -93,18 +93,18 @@ func NewContractCreation(nonce uint64, amount *big.Int, gasLimit *big.Int, gasPr
 }
 
 // ========= Transaction Getters =========
-func (tx *Transaction) Nonce() uint64       { return tx.data.AccountNonce }
-func (tx *Transaction) GasPrice() *big.Int  { return new(big.Int).Set(tx.data.GasPrice) }
-func (tx *Transaction) GasCost() *big.Int   { return new(big.Int).Set(tx.data.GasCost) }
-func (tx *Transaction) GasLimit() *big.Int  { return tx.data.GasLimit }
-func (tx *Transaction) To() *common.Address { return tx.data.Recipient }
-func (tx *Transaction) Value() *big.Int     { return new(big.Int).Set(tx.data.Amount) }
-func (tx *Transaction) Data() []byte        { return tx.data.Payload }
+func (tx *Transaction) Nonce() uint64       { return tx.Data.AccountNonce }
+func (tx *Transaction) GasPrice() *big.Int  { return new(big.Int).Set(tx.Data.GasPrice) }
+func (tx *Transaction) GasCost() *big.Int   { return new(big.Int).Set(tx.Data.GasCost) }
+func (tx *Transaction) GasLimit() *big.Int  { return tx.Data.GasLimit }
+func (tx *Transaction) To() *common.Address { return tx.Data.Recipient }
+func (tx *Transaction) Value() *big.Int     { return new(big.Int).Set(tx.Data.Amount) }
+func (tx *Transaction) GetData() []byte     { return tx.Data.Payload }
 func (tx *Transaction) From() (common.Address, error) {
 	return tx.Sender()
 }
 func (tx *Transaction) ChainID() *big.Int {
-	return new(big.Int).Set(tx.data.chainId)
+	return new(big.Int).Set(tx.Data.ChainId)
 }
 
 // ========= Transaction Func =========
@@ -117,14 +117,14 @@ func (tx *Transaction) Hash() common.Hash {
 		return hash.(common.Hash)
 	}
 	rawData := []interface{}{
-		tx.data.chainId,
-		tx.data.AccountNonce,
-		tx.data.GasPrice,
-		tx.data.GasLimit,
-		tx.data.GasCost,
-		tx.data.Recipient,
-		tx.data.Amount,
-		tx.data.Payload,
+		tx.Data.ChainId,
+		tx.Data.AccountNonce,
+		tx.Data.GasPrice,
+		tx.Data.GasLimit,
+		tx.Data.GasCost,
+		tx.Data.Recipient,
+		tx.Data.Amount,
+		tx.Data.Payload,
 	}
 	bytes, _ := common.RlpEncodeToBytes(rawData)
 	h := crypto.Keccak256Hash(bytes)
@@ -150,7 +150,7 @@ func (tx *Transaction) SignTx(privateKey *ecdsa.PrivateKey) error {
 		return common.ErrInvalidSignature
 	}
 	// 3 store V, R, S
-	tx.data.Signature = sig
+	tx.Data.Signature = sig
 
 	return nil
 }
@@ -171,7 +171,7 @@ func (tx *Transaction) Sender() (common.Address, error) {
 		return from.(common.Address), nil
 	}
 
-	if !tx.data.Signature.Validate() {
+	if !tx.Data.Signature.Validate() {
 		log.Warn("[types][Sender] failed to perform signature Validate")
 		return common.Address{}, common.ErrInvalidSignature
 	}
@@ -179,14 +179,14 @@ func (tx *Transaction) Sender() (common.Address, error) {
 	h := tx.Hash()
 
 	// restore address from SRV
-	pubKey, err := crypto.Ecrecover(h[:], tx.data.Signature)
+	pubKey, err := crypto.Ecrecover(h[:], tx.Data.Signature)
 
 	if err != nil {
 		log.Warn("[types][Sender] failed to perform Ecrecover", "err", err)
 		return common.Address{}, common.ErrInvalidSignature
 	}
 
-	if !crypto.VerifySignature(pubKey, h[:], tx.data.Signature) {
+	if !crypto.VerifySignature(pubKey, h[:], tx.Data.Signature) {
 		log.Warn("[types][Sender] failed to perform VerifySignature", "err", err)
 		return common.Address{}, common.ErrInvalidSignature
 	}
@@ -200,14 +200,14 @@ func (tx *Transaction) Sender() (common.Address, error) {
 // TotalCost return txn cost
 // TotalCost = transfer amount + (gas limit × gas price)
 func (tx *Transaction) TotalCost() *big.Int {
-	total := new(big.Int).Mul(tx.data.GasPrice, tx.data.GasCost)
-	total.Add(total, tx.data.Amount)
+	total := new(big.Int).Mul(tx.Data.GasPrice, tx.Data.GasCost)
+	total.Add(total, tx.Data.Amount)
 	return total
 }
 
 // IsContractCreation is contract creation
 func (tx *Transaction) IsContractCreation() bool {
-	return tx.data.Recipient == nil
+	return tx.Data.Recipient == nil
 }
 
 // Size return txn size（for restrict block size）
@@ -217,44 +217,44 @@ func (tx *Transaction) Size() uint64 {
 	}
 
 	// TODO: revamp this
-	size := uint64(32 + 32 + 8 + 8 + 32 + len(tx.data.Payload) + 96) // simplify
+	size := uint64(32 + 32 + 8 + 8 + 32 + len(tx.Data.Payload) + 96) // simplify
 	tx.size.Store(size)
 	return size
 }
 
 func (tx *Transaction) String() string {
 	to := "contract creation"
-	if tx.data.Recipient != nil {
-		to = tx.data.Recipient.Hex()
+	if tx.Data.Recipient != nil {
+		to = tx.Data.Recipient.Hex()
 	}
 
 	return fmt.Sprintf("TX(%s): nonce=%d, to=%s, value=%s, gas=%d, gasPrice=%s, dataLen=%d",
 		fmt.Sprintf("...%s", tx.Hash().Hex()[:8]),
-		tx.data.AccountNonce,
+		tx.Data.AccountNonce,
 		to,
-		tx.data.Amount,
-		tx.data.GasLimit,
-		tx.data.GasPrice,
-		len(tx.data.Payload),
+		tx.Data.Amount,
+		tx.Data.GasLimit,
+		tx.Data.GasPrice,
+		len(tx.Data.Payload),
 	)
 }
 
 func (tx *Transaction) SetValue(value *big.Int) {
-	tx.data.Amount = value
+	tx.Data.Amount = value
 }
 
 // Encode enocde to RLP
 func (tx *Transaction) Encode() []byte {
 	rawData := []interface{}{
-		tx.data.chainId,
-		tx.data.AccountNonce,
-		tx.data.GasPrice,
-		tx.data.GasLimit,
-		tx.data.GasCost,
-		tx.data.Recipient,
-		tx.data.Amount,
-		tx.data.Payload,
-		tx.data.Signature.Bytes(),
+		tx.Data.ChainId,
+		tx.Data.AccountNonce,
+		tx.Data.GasPrice,
+		tx.Data.GasLimit,
+		tx.Data.GasCost,
+		tx.Data.Recipient,
+		tx.Data.Amount,
+		tx.Data.Payload,
+		tx.Data.Signature.Bytes(),
 	}
 	bytes, err := common.RlpEncodeToBytes(rawData)
 	if err != nil {
@@ -266,7 +266,7 @@ func (tx *Transaction) Encode() []byte {
 // DecodeToTxn decode rlp bytes to TXN
 func DecodeToTxn(encoded []byte) (*Transaction, error) {
 	if len(encoded) == 0 {
-		return nil, errors.New("empty encoded data")
+		return nil, errors.New("empty encoded Data")
 	}
 
 	var decoded []interface{}
@@ -280,64 +280,64 @@ func DecodeToTxn(encoded []byte) (*Transaction, error) {
 		return nil, fmt.Errorf("invalid transaction format: expected 10 fields, got %d", len(decoded))
 	}
 	tx := &Transaction{
-		data: txdata{},
+		Data: Txdata{},
 	}
 
-	// 1.  chainId
+	// 1.  ChainId
 	chainId, err := decodeBigInt(decoded[0])
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode chainId: %w", err)
+		return nil, fmt.Errorf("failed to decode ChainId: %w", err)
 	}
-	tx.data.chainId = chainId
+	tx.Data.ChainId = chainId
 
 	// 2.  AccountNonce
 	nonce, err := decodeUint64(decoded[1])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode nonce: %w", err)
 	}
-	tx.data.AccountNonce = nonce
+	tx.Data.AccountNonce = nonce
 
 	// 3.  GasPrice
 	gasPrice, err := decodeBigInt(decoded[2])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode gasPrice: %w", err)
 	}
-	tx.data.GasPrice = gasPrice
+	tx.Data.GasPrice = gasPrice
 
 	// 4.  GasLimit
 	gasLimit, err := decodeBigInt(decoded[3])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode gasLimit: %w", err)
 	}
-	tx.data.GasLimit = gasLimit
+	tx.Data.GasLimit = gasLimit
 
 	// 5.  GasCost
 	gasCost, err := decodeBigInt(decoded[4])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode gasCost: %w", err)
 	}
-	tx.data.GasCost = gasCost
+	tx.Data.GasCost = gasCost
 
 	// 6.  Recipient (可能為 nil)
 	recipient, err := decodeAddress(decoded[5])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode recipient: %w", err)
 	}
-	tx.data.Recipient = recipient
+	tx.Data.Recipient = recipient
 
 	// 7.  Amount
 	amount, err := decodeBigInt(decoded[6])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode amount: %w", err)
 	}
-	tx.data.Amount = amount
+	tx.Data.Amount = amount
 
 	// 8.  Payload
 	payload, err := decodeBytes(decoded[7])
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode payload: %w", err)
 	}
-	tx.data.Payload = payload
+	tx.Data.Payload = payload
 
 	// 9.  Signature
 	sigBytes, err := decodeBytes(decoded[8])
@@ -349,7 +349,7 @@ func DecodeToTxn(encoded []byte) (*Transaction, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode signature: %w", err)
 		}
-		tx.data.Signature = signature
+		tx.Data.Signature = signature
 	}
 
 	// calculate hash
@@ -371,5 +371,5 @@ func (s TxByNonce) Less(i, j int) bool {
 type TxByPrice []*Transaction
 
 func (s TxByPrice) Len() int           { return len(s) }
-func (s TxByPrice) Less(i, j int) bool { return s[i].data.GasPrice.Cmp(s[j].data.GasPrice) > 0 }
+func (s TxByPrice) Less(i, j int) bool { return s[i].Data.GasPrice.Cmp(s[j].Data.GasPrice) > 0 }
 func (s TxByPrice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }

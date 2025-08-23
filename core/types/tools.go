@@ -165,28 +165,28 @@ func ValidateDecoding(tx *Transaction) error {
 		return fmt.Errorf("failed to decode: %w", err)
 	}
 
-	if tx.data.AccountNonce != decoded.data.AccountNonce {
+	if tx.Data.AccountNonce != decoded.Data.AccountNonce {
 		return fmt.Errorf("nonce mismatch: expected %d, got %d",
-			tx.data.AccountNonce, decoded.data.AccountNonce)
+			tx.Data.AccountNonce, decoded.Data.AccountNonce)
 	}
 
-	if tx.data.GasPrice.Cmp(decoded.data.GasPrice) != 0 {
+	if tx.Data.GasPrice.Cmp(decoded.Data.GasPrice) != 0 {
 		return fmt.Errorf("gasPrice mismatch")
 	}
 
-	if tx.data.Amount.Cmp(decoded.data.Amount) != 0 {
+	if tx.Data.Amount.Cmp(decoded.Data.Amount) != 0 {
 		return fmt.Errorf("amount mismatch")
 	}
 
-	if (tx.data.Recipient == nil) != (decoded.data.Recipient == nil) {
+	if (tx.Data.Recipient == nil) != (decoded.Data.Recipient == nil) {
 		return fmt.Errorf("recipient nil status mismatch")
 	}
 
-	if tx.data.Recipient != nil && *tx.data.Recipient != *decoded.data.Recipient {
+	if tx.Data.Recipient != nil && *tx.Data.Recipient != *decoded.Data.Recipient {
 		return fmt.Errorf("recipient address mismatch")
 	}
 
-	if !bytes.Equal(tx.data.Payload, decoded.data.Payload) {
+	if !bytes.Equal(tx.Data.Payload, decoded.Data.Payload) {
 		return fmt.Errorf("payload mismatch")
 	}
 

@@ -14,7 +14,7 @@ func Test_Create_Txn(t *testing.T) {
 
 	txn := NewTransaction(13, &wallet, big.NewInt(10000), big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn.Value())
-	fmt.Println("data:", txn.Data())
+	fmt.Println("Data:", txn.Data())
 	fmt.Println("nonce:", txn.Nonce())
 	fmt.Println("hash:", txn.Hash())
 	fmt.Println("size:", txn.Size())
@@ -30,7 +30,7 @@ func Test_Sign_Txn_then_Verify(t *testing.T) {
 
 	txn := NewTransaction(13, &wallet, big.NewInt(10000), big.NewInt(6000), big.NewInt(10000), []byte{})
 	fmt.Println("value:", txn.Value())
-	fmt.Println("data:", txn.Data())
+	fmt.Println("Data:", txn.Data())
 	fmt.Println("nonce:", txn.Nonce())
 	fmt.Println("hash:", txn.Hash())
 
@@ -39,8 +39,8 @@ func Test_Sign_Txn_then_Verify(t *testing.T) {
 
 	err = txn.SignTx(privKey)
 	assert.Nil(t, err)
-	assert.NotNil(t, txn.data.Signature)
-	fmt.Println("signature:", txn.data.Signature)
+	assert.NotNil(t, txn.Data.Signature)
+	fmt.Println("signature:", txn.Data.Signature)
 	sender, err := txn.Sender()
 	assert.Nil(t, err)
 	fmt.Println("sender:", sender)

@@ -1,6 +1,6 @@
 package types
 
-// Body represents the data content of a block (transactions and uncles)
+// Body represents the Data content of a block (transactions and uncles)
 type Body struct {
 	Transactions Transactions `json:"transactions"`
 	Uncles       []*Header    `json:"uncles"`

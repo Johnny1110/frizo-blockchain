@@ -10,7 +10,7 @@ import (
 // IChainReader define blockchain reader
 type IChainReader interface {
 	// Config
-	Config() *common.ChainConfig
+	Config() *ChainConfig
 
 	// Current State
 	CurrentBlock() *types.Block

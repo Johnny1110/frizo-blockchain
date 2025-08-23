@@ -20,7 +20,7 @@ func (s Transactions) Len() int { return len(s) }
 // Block Represent 1 block in blockchain
 // Block = BlockHeader + TxnList
 // - light-weight client only need block header (merkle root)
-// - BlockHeader contains all potential data for verify txn
+// - BlockHeader contains all potential Data for verify txn
 type Block struct {
 	enableCache  bool
 	header       *Header
@@ -51,7 +51,7 @@ type Header struct {
 	GasLimit *big.Int `json:"gasLimit"`
 	// GasUsed used gas
 	GasUsed *big.Int `json:"gasUsed"`
-	// Extra extra data 32 byte (validator can put custom data into this field)
+	// Extra extra Data 32 byte (validator can put custom Data into this field)
 	Extra []byte `json:"extraData"`
 	// MixDigest for random number
 	MixDigest common.Hash `json:"mixHash"`
@@ -273,7 +273,7 @@ func (b *Block) Validate() error {
 }
 
 // Body etc.
-// Body get txn * uncle data without header
+// Body get txn * uncle Data without header
 func (b *Block) Body() *Body {
 	if b == nil {
 		return nil
@@ -282,7 +282,7 @@ func (b *Block) Body() *Body {
 	return NewBody(b.transactions, nil)
 }
 
-// apply txn and uncle data into block
+// apply txn and uncle Data into block
 func (b *Block) WithBody(body *Body) *Block {
 	if body == nil {
 		return b

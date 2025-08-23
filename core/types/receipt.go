@@ -35,7 +35,7 @@ type Receipt struct {
 	TxHash common.Hash `json:"transactionHash"`
 
 	// ContractAddress created contract address（nil of not a contract creation）
-	ContractAddress *common.Address `json:"contractAddress,omitempty"`
+	ContractAddress common.Address `json:"contractAddress,omitempty"`
 
 	// GasUsed consumed gas
 	GasUsed *big.Int `json:"gasUsed"`
@@ -213,7 +213,7 @@ func DecodeToReceipt(encoded []byte) (*Receipt, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode ContractAddress: %w", err)
 	}
-	r.ContractAddress = contractAddress
+	r.ContractAddress = *contractAddress
 
 	// 7.  GasUsed
 	gasUsed, err := decodeBigInt(decoded[6])

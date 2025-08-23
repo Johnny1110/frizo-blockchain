@@ -141,6 +141,7 @@ func TestReceiptsStorage(t *testing.T) {
 	// Create test receipts
 	receipts := types.Receipts{
 		&types.Receipt{
+			ContractAddress:   common.HexToAddress(""),
 			Status:            1,
 			CumulativeGasUsed: big.NewInt(21000),
 			TxHash:            common.HexToHash("0xabc"),
@@ -160,6 +161,7 @@ func TestReceiptsStorage(t *testing.T) {
 
 	// Read
 	got := ReadReceipts(db, hash, number)
+	fmt.Println("got size:", len(got))
 	for _, rec := range got {
 		fmt.Println("receipt:", rec)
 	}
@@ -177,60 +179,29 @@ func TestReceiptsStorage(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-//func TestBatchOperations(t *testing.T) {
-//	db := NewDatabase(storage.NewMemoryDatabase())
-//
-//	batch := db.NewBatch()
-//
-//	// Add multiple operations to batch
-//	for i := uint64(0); i < 10; i++ {
-//		hash := common.BytesToHash([]byte{byte(i)})
-//		err := batch.Put(headerHashKey(i), hash.Bytes())
-//		assert.NoError(t, err)
-//	}
-//
-//	// Check batch size
-//	assert.True(t, batch.ValueSize() > 0)
-//
-//	// Write batch
-//	err := batch.Write()
-//	assert.NoError(t, err)
-//
-//	// Verify data was written
-//	for i := uint64(0); i < 10; i++ {
-//		hash := ReadCanonicalHash(db, i)
-//		expected := common.BytesToHash([]byte{byte(i)})
-//		assert.Equal(t, expected, hash)
-//	}
-//
-//	// Reset batch
-//	batch.Reset()
-//	assert.Equal(t, 0, batch.ValueSize())
-//}
-//
-//func TestTxLookup(t *testing.T) {
-//	db := NewDatabase(storage.NewMemoryDatabase())
-//
-//	txHash := common.HexToHash("0xabc123")
-//	blockHash := common.HexToHash("0xdef456")
-//	blockIndex := uint64(100)
-//	txIndex := uint64(5)
-//
-//	// Write
-//	err := WriteTxLookupEntry(db, txHash, blockHash, blockIndex, txIndex)
-//	assert.NoError(t, err)
-//
-//	// Read
-//	gotBlockHash, gotBlockIndex, gotTxIndex := ReadTxLookupEntry(db, txHash)
-//	assert.Equal(t, blockHash, gotBlockHash)
-//	assert.Equal(t, blockIndex, gotBlockIndex)
-//	assert.Equal(t, txIndex, gotTxIndex)
-//
-//	// Delete
-//	err = DeleteTxLookupEntry(db, txHash)
-//	assert.NoError(t, err)
-//
-//	// Read after delete
-//	gotBlockHash, _, _ = ReadTxLookupEntry(db, txHash)
-//	assert.Equal(t, common.Hash{}, gotBlockHash)
-//}
+func TestTxLookup(t *testing.T) {
+	db := storage.NewInMemoryKVStore()
+
+	txHash := common.HexToHash("0xabc123")
+	blockHash := common.HexToHash("0xdef456")
+	blockIndex := uint64(100)
+	txIndex := uint64(5)
+
+	// Write
+	err := WriteTxLookupEntry(db, txHash, blockHash, blockIndex, txIndex)
+	assert.NoError(t, err)
+
+	// Read
+	gotBlockHash, gotBlockIndex, gotTxIndex := ReadTxLookupEntry(db, txHash)
+	assert.Equal(t, blockHash, gotBlockHash)
+	assert.Equal(t, blockIndex, gotBlockIndex)
+	assert.Equal(t, txIndex, gotTxIndex)
+
+	// Delete
+	err = DeleteTxLookupEntry(db, txHash)
+	assert.NoError(t, err)
+
+	// Read after delete
+	gotBlockHash, _, _ = ReadTxLookupEntry(db, txHash)
+	assert.Equal(t, common.Hash{}, gotBlockHash)
+}

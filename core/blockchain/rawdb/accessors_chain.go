@@ -144,11 +144,12 @@ func ReadReceipts(db storage.IKVStore, hash common.Hash, number uint64) types.Re
 		return nil
 	}
 
-	receipts := make(types.Receipts, 0)
-	if err := rlp.Decode(bytes.NewReader(data), &receipts); err != nil {
+	receipts := new(types.Receipts)
+	if err := rlp.Decode(bytes.NewReader(data), receipts); err != nil {
+		fmt.Println("ReadReceipts failed to decode receipts:", err)
 		return nil
 	}
-	return receipts
+	return *receipts
 }
 
 func WriteReceipts(db storage.IKVStore, hash common.Hash, number uint64, receipts types.Receipts) error {
